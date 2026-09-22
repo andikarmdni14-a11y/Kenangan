@@ -1,13 +1,13 @@
 <!doctype html>
 <html lang="id">
   <head>
-    <meta name="color-scheme" content="light only">
     <meta charset="utf-8" />
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1, viewport-fit=cover"
     />
-    <meta name="theme-color" content="#f7f3ea" />
+    <meta name="theme-color" content="#fff7fa" />
+    <meta name="color-scheme" content="light" />
     <meta
       name="description"
       content="Ruang kecil untuk menyimpan cerita, impian, dan kenangan kita berdua."
@@ -32,7 +32,6 @@
     ></script>
     <script defer src="./supabase-config.js"></script>
     <script defer src="./main.js"></script>
-    <script defer src="./admin.js"></script>
   </head>
   <body>
     <a class="skip-link" href="#content">Langsung ke isi</a>
@@ -65,7 +64,7 @@
           Pasang di HP
         </button>
         <button id="admin-open" class="button small ghost" type="button" hidden>
-          Ruang Admin
+          + Tambah
         </button>
         <button
           id="lock-button"
@@ -141,12 +140,22 @@
               aria-live="polite"
             ></p>
           </form>
+          <button
+            id="email-login-open"
+            class="text-button email-login"
+            type="button"
+          >
+            Masuk dengan email akun
+          </button>
           <p class="tiny muted">Disimpan dengan hangat. Dibuka dengan hati.</p>
         </div>
       </section>
 
       <div id="app-screen" class="app-shell" hidden>
         <section class="hero paper" aria-labelledby="couple-names">
+          <div class="floating-hearts" aria-hidden="true">
+            <span>♡</span><span>♡</span><span>✧</span>
+          </div>
           <div>
             <p class="eyebrow">ALBUM YANG TERUS BERTUMBUH</p>
             <h1 id="couple-names">Kita berdua</h1>
@@ -178,6 +187,61 @@
               ><strong id="event-countdown">Belum ada rencana</strong
               ><span id="event-detail">Masih banyak hal indah menanti.</span>
             </div>
+          </div>
+        </section>
+        <section class="music-player paper" aria-label="Pemutar musik bersama">
+          <span class="music-cover" aria-hidden="true">♫</span>
+          <div class="music-track-field">
+            <label for="music-track">LAGU UNTUK KITA</label>
+            <select id="music-track" disabled>
+              <option value="">Belum ada lagu</option>
+            </select>
+          </div>
+          <div class="music-transport">
+            <button
+              id="music-previous"
+              class="icon-button"
+              type="button"
+              aria-label="Lagu sebelumnya"
+              disabled
+            >
+              ‹
+            </button>
+            <button
+              id="music-toggle"
+              class="icon-button music-play"
+              type="button"
+              aria-label="Putar musik"
+              aria-pressed="false"
+              disabled
+            >
+              ▷
+            </button>
+            <button
+              id="music-next"
+              class="icon-button"
+              type="button"
+              aria-label="Lagu berikutnya"
+              disabled
+            >
+              ›
+            </button>
+          </div>
+          <div class="music-volume-field">
+            <label for="music-volume"
+              >Volume
+              <output id="music-volume-value" for="music-volume"
+                >35%</output
+              ></label
+            >
+            <input
+              id="music-volume"
+              type="range"
+              min="0"
+              max="1"
+              step="0.05"
+              value="0.35"
+            />
           </div>
         </section>
         <nav class="section-nav" aria-label="Jelajahi cerita">
@@ -264,12 +328,12 @@
                 <p id="journal-message" class="form-message" role="status"></p>
               </form>
               <details class="journal-history">
-                <summary>Cerita hari sebelumnya</summary>
+                <summary>Cerita kita yang tersimpan</summary>
                 <div id="journal-history"></div>
               </details>
             </div>
             <p id="admin-journal-note" class="muted" hidden>
-              Cerita harian pasanganmu bisa dibaca di Ruang Admin.
+              Cerita harian kita tersimpan bersama.
             </p>
           </section>
           <section
@@ -286,7 +350,7 @@
             </div>
             <ul id="bucket-list" class="bucket-list"></ul>
             <p id="bucket-empty" class="empty-state small-empty">
-              Belum ada impian tertulis. Admin bisa menambahkan yang pertama.
+              Belum ada impian tertulis. Ketuk + Tambah untuk memulai.
             </p>
             <p class="tiny muted">
               Satu centang, satu langkah yang kita rayakan.
@@ -384,16 +448,16 @@
           ×
         </button>
         <p class="eyebrow">DI BALIK CERITA KITA</p>
-        <h2 id="admin-login-heading">Masuk sebagai Admin</h2>
+        <h2 id="admin-login-heading">Masuk ke ruang kita</h2>
         <form id="admin-login-form">
-          <label for="admin-email">Email Admin</label
+          <label for="admin-email">Email akunmu</label
           ><input
             id="admin-email"
             name="email"
             type="email"
             required
             autocomplete="username"
-          /><label for="admin-password">Kata sandi Admin</label
+          /><label for="admin-password">Kata sandi akunmu</label
           ><input
             id="admin-password"
             name="password"
@@ -417,12 +481,13 @@
           class="dialog-close icon-button"
           type="button"
           data-close="admin-dialog"
-          aria-label="Tutup Ruang Admin"
+          aria-label="Tutup ruang bersama"
         >
           ×
         </button>
         <p class="eyebrow">RAWAT CERITA KITA</p>
-        <h2 id="admin-heading">Ruang Admin</h2>
+        <h2 id="admin-heading">Tambah cerita kita</h2>
+        <p id="member-role" class="muted tiny"></p>
         <details class="admin-section" open>
           <summary>01 · Simpan kenangan baru</summary>
           <form id="upload-form">
@@ -470,7 +535,8 @@
             </div>
             <p class="tiny muted">
               Kosongkan tanggal buka agar langsung terlihat. Jam input mengikuti
-              zona waktu perangkatmu. Admin bisa melihat isi kapsul kapan saja.
+              zona waktu perangkatmu. Pembuat kapsul dan Admin bisa melihat
+              isinya kapan saja.
             </p>
             <button class="button" type="submit">Simpan kenangan</button
             ><progress
@@ -517,7 +583,7 @@
               placeholder="Hai, sayang…"
             ></textarea>
             <p class="tiny muted">
-              Surat langsung bisa dibuka Viewer setelah disimpan. Baris baru
+              Surat langsung bisa dibuka pasangan setelah disimpan. Baris baru
               akan dipertahankan.
             </p>
             <button class="button small" type="submit">
@@ -526,8 +592,13 @@
             <p id="letter-message" class="form-message" role="status"></p>
           </form>
         </details>
-        <details class="admin-section">
-          <summary>04 · Nama, waktu, dan musik</summary>
+        <details
+          id="settings-section"
+          class="admin-section"
+          data-admin-only
+          hidden
+        >
+          <summary>Pengaturan Admin · Nama, waktu, dan musik</summary>
           <form id="settings-form">
             <label for="settings-names">Nama kalian</label
             ><input
@@ -559,7 +630,7 @@
               id="settings-event-at"
               name="eventAt"
               type="datetime-local"
-            /><label for="settings-music">Musik latar</label
+            /><label for="settings-music">Lagu awal</label
             ><select id="settings-music" name="music">
               <option value="">Tanpa musik</option>
             </select>
@@ -575,12 +646,12 @@
           </form>
         </details>
         <details id="inbox-details" class="admin-section">
-          <summary>05 · Pesan dan jurnal pasangan</summary>
+          <summary>04 · Pesan dan jurnal kita</summary>
           <button id="inbox-refresh" class="button small ghost" type="button">
             Muat ulang
           </button>
           <p id="inbox-message" class="form-message" role="status"></p>
-          <h3>Pesan masuk</h3>
+          <h3>Percakapan kita</h3>
           <div id="admin-replies"></div>
           <button id="more-replies" class="text-button" type="button" hidden>
             Pesan sebelumnya
@@ -616,6 +687,9 @@
           <button id="memory-reply" class="button small" type="button" hidden>
             Balas kenangan ini
           </button>
+          <a id="memory-download" class="button small ghost" download hidden
+            >Unduh file asli</a
+          >
         </div>
       </div>
     </dialog>
@@ -641,7 +715,7 @@
       </article>
     </dialog>
     <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
-    <audio id="background-music" loop preload="none"></audio>
+    <audio id="background-music" preload="none"></audio>
     <noscript
       ><p class="banner">
         Aktifkan JavaScript untuk membuka Couple Memory Vault.
