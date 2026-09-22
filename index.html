@@ -1,0 +1,651 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta name="color-scheme" content="light only">
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#f7f3ea" />
+    <meta
+      name="description"
+      content="Ruang kecil untuk menyimpan cerita, impian, dan kenangan kita berdua."
+    />
+    <meta name="referrer" content="no-referrer" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self'; img-src 'self' blob: data:; media-src 'self' blob:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests"
+    />
+    <title>Couple Memory Vault · Cerita Kita</title>
+    <link rel="icon" type="image/png" href="./icons/icon-192.png" />
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
+    <link rel="manifest" href="./manifest.json" />
+    <link rel="stylesheet" href="./style.css" />
+    <!-- CDN resmi Supabase v2. Tidak membutuhkan npm, bundler, atau framework. -->
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.99.2/dist/umd/supabase.js"
+      crossorigin="anonymous"
+    ></script>
+    <script defer src="./supabase-config.js"></script>
+    <script defer src="./main.js"></script>
+    <script defer src="./admin.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#content">Langsung ke isi</a>
+    <div id="network-banner" class="banner" role="status" hidden>
+      Kamu sedang offline. Sambungkan internet untuk membuka kenangan.
+    </div>
+    <div id="update-banner" class="banner" hidden>
+      Versi baru siap.
+      <button id="update-button" class="text-button" type="button">
+        Muat ulang
+      </button>
+    </div>
+    <header class="site-header">
+      <button
+        class="brand"
+        type="button"
+        data-admin-unlock
+        aria-label="Couple Memory Vault; ketuk cepat tiga kali untuk masuk sebagai Admin"
+      >
+        <span class="brand-icon" aria-hidden="true">♡</span>
+        <span>Couple Memory Vault<small>SEBUAH RUANG UNTUK KITA</small></span>
+      </button>
+      <div class="header-actions">
+        <button
+          id="install-button"
+          class="button small ghost"
+          type="button"
+          hidden
+        >
+          Pasang di HP
+        </button>
+        <button id="admin-open" class="button small ghost" type="button" hidden>
+          Ruang Admin
+        </button>
+        <button
+          id="lock-button"
+          class="icon-button"
+          type="button"
+          title="Kunci dan keluar"
+          aria-label="Kunci dan keluar"
+          hidden
+        >
+          ↪
+        </button>
+      </div>
+    </header>
+
+    <main id="content">
+      <section
+        id="lock-screen"
+        class="lock-layout"
+        aria-labelledby="lock-heading"
+      >
+        <div class="lock-intro">
+          <p class="eyebrow">HANYA KITA YANG TAHU</p>
+          <h1 id="lock-heading">
+            Hal-hal kecil.<br />Kenangan <em>selamanya.</em>
+          </h1>
+          <p class="intro-copy">
+            Ada cerita yang terlalu berharga untuk sekadar lewat. Kita simpan di
+            sini, untuk dibuka dan dirasakan lagi.
+          </p>
+          <div class="keepsake-art" aria-hidden="true">
+            <div class="paper-note">
+              Untuk kita,<br />dan semua hari<br />yang akan datang.<span
+                >♡</span
+              >
+            </div>
+            <div class="postage">DENGAN<br />SEPENUH<br />HATI</div>
+            <span class="scribble">satu cerita, dua hati</span>
+          </div>
+        </div>
+        <div class="lock-card paper">
+          <div class="lock-emblem" aria-hidden="true">♡</div>
+          <p class="eyebrow">PINTU MENUJU CERITA KITA</p>
+          <h2>Selamat datang, kamu.</h2>
+          <p>Masukkan kata sandi kenangan untuk membuka ruang kecil kita.</p>
+          <form id="viewer-login-form">
+            <label for="viewer-password">Kata Sandi Kenangan</label>
+            <div class="password-field">
+              <input
+                id="viewer-password"
+                name="password"
+                type="password"
+                required
+                autocomplete="current-password"
+                maxlength="256"
+                placeholder="Kata sandi kita"
+              /><button
+                type="button"
+                id="toggle-password"
+                class="text-button"
+                aria-pressed="false"
+                aria-label="Tampilkan kata sandi"
+              >
+                Lihat
+              </button>
+            </div>
+            <button class="button full" type="submit">
+              Buka kenangan <span aria-hidden="true">→</span>
+            </button>
+            <p
+              id="login-message"
+              class="form-message"
+              role="status"
+              aria-live="polite"
+            ></p>
+          </form>
+          <p class="tiny muted">Disimpan dengan hangat. Dibuka dengan hati.</p>
+        </div>
+      </section>
+
+      <div id="app-screen" class="app-shell" hidden>
+        <section class="hero paper" aria-labelledby="couple-names">
+          <div>
+            <p class="eyebrow">ALBUM YANG TERUS BERTUMBUH</p>
+            <h1 id="couple-names">Kita berdua</h1>
+            <p>Rumah untuk semua cerita kecil kita.</p>
+            <div class="hero-actions">
+              <button id="surprise-button" class="button" type="button">
+                ✧ Surprise Me</button
+              ><button
+                id="music-button"
+                class="button ghost"
+                type="button"
+                aria-pressed="false"
+              >
+                ♫ Putar musik
+              </button>
+            </div>
+            <p id="music-note" class="tiny muted"></p>
+          </div>
+          <div class="time-cards">
+            <div class="time-card">
+              <span class="eyebrow">SUDAH SEJAUH INI</span
+              ><strong id="relationship-days">—</strong
+              ><span id="relationship-detail"
+                >Tanggal jadian belum diatur.</span
+              >
+            </div>
+            <div class="time-card event-card">
+              <span id="event-name" class="eyebrow">HARI YANG DINANTI</span
+              ><strong id="event-countdown">Belum ada rencana</strong
+              ><span id="event-detail">Masih banyak hal indah menanti.</span>
+            </div>
+          </div>
+        </section>
+        <nav class="section-nav" aria-label="Jelajahi cerita">
+          <a href="#memories-section">Kenangan</a
+          ><a href="#journal-section">Jurnal</a
+          ><a href="#dreams-section">Impian kita</a
+          ><a href="#letters-section">Surat cinta</a>
+        </nav>
+        <p id="app-message" class="form-message" role="status"></p>
+        <section
+          id="memories-section"
+          class="gallery-section"
+          aria-labelledby="gallery-heading"
+        >
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">POTONGAN CERITA KITA</p>
+              <h2 id="gallery-heading">Rak kenangan</h2>
+            </div>
+            <div class="gallery-controls">
+              <button
+                id="refresh-button"
+                class="icon-button"
+                type="button"
+                title="Muat ulang kenangan"
+                aria-label="Muat ulang kenangan"
+              >
+                ↻
+              </button>
+              <div class="segmented" role="group" aria-label="Tampilan galeri">
+                <button id="masonry-button" type="button" aria-pressed="true">
+                  Masonry</button
+                ><button
+                  id="timeline-button"
+                  type="button"
+                  aria-pressed="false"
+                >
+                  Linimasa
+                </button>
+              </div>
+            </div>
+          </div>
+          <div id="gallery" class="gallery masonry" aria-live="polite"></div>
+          <p id="gallery-empty" class="empty-state">
+            Belum ada kenangan. Cerita pertama kita sedang menunggu.
+          </p>
+          <button
+            id="load-more"
+            class="button ghost center-button"
+            type="button"
+            hidden
+          >
+            Lihat kenangan lainnya
+          </button>
+        </section>
+
+        <div class="panels-grid">
+          <section
+            id="journal-section"
+            class="paper panel"
+            aria-labelledby="journal-heading"
+          >
+            <p class="eyebrow">SATU HARI, SATU CERITA</p>
+            <h2 id="journal-heading">Jurnal hari ini</h2>
+            <div id="viewer-journal" hidden>
+              <p id="daily-date" class="tiny muted"></p>
+              <p id="daily-question" class="prompt-question">
+                Memuat pertanyaan…
+              </p>
+              <form id="journal-form">
+                <label class="sr-only" for="journal-answer"
+                  >Jawabanmu hari ini</label
+                ><textarea
+                  id="journal-answer"
+                  name="answer"
+                  rows="4"
+                  maxlength="3000"
+                  required
+                  placeholder="Tidak harus sempurna. Ceritakan saja…"
+                ></textarea
+                ><button class="button small" type="submit">
+                  Simpan ceritaku
+                </button>
+                <p id="journal-message" class="form-message" role="status"></p>
+              </form>
+              <details class="journal-history">
+                <summary>Cerita hari sebelumnya</summary>
+                <div id="journal-history"></div>
+              </details>
+            </div>
+            <p id="admin-journal-note" class="muted" hidden>
+              Cerita harian pasanganmu bisa dibaca di Ruang Admin.
+            </p>
+          </section>
+          <section
+            id="dreams-section"
+            class="paper panel"
+            aria-labelledby="dreams-heading"
+          >
+            <div class="section-heading compact">
+              <div>
+                <p class="eyebrow">SUATU HARI NANTI</p>
+                <h2 id="dreams-heading">Impian kita</h2>
+              </div>
+              <span id="bucket-count" class="pill">0/0</span>
+            </div>
+            <ul id="bucket-list" class="bucket-list"></ul>
+            <p id="bucket-empty" class="empty-state small-empty">
+              Belum ada impian tertulis. Admin bisa menambahkan yang pertama.
+            </p>
+            <p class="tiny muted">
+              Satu centang, satu langkah yang kita rayakan.
+            </p>
+          </section>
+          <section
+            id="letters-section"
+            class="paper panel letter-panel"
+            aria-labelledby="letters-heading"
+          >
+            <p class="eyebrow">DARI HATI, UNTUK HATI</p>
+            <h2 id="letters-heading">Ada surat untukmu.</h2>
+            <button
+              id="envelope-button"
+              class="envelope-button"
+              type="button"
+              aria-label="Buka surat cinta"
+              disabled
+            >
+              <span class="envelope" aria-hidden="true"
+                ><span class="envelope-letter">Untuk kamu, ♡</span
+                ><span class="envelope-front"></span
+                ><span class="envelope-flap"></span
+                ><span class="envelope-seal">♡</span></span
+              >
+            </button>
+            <p id="letter-teaser" class="muted">
+              Surat pertama kita belum ditulis.
+            </p>
+            <label
+              id="letter-select-label"
+              for="letter-select"
+              class="tiny"
+              hidden
+              >Pilih surat</label
+            ><select id="letter-select" hidden></select>
+          </section>
+          <section
+            id="reply-panel"
+            class="paper panel"
+            aria-labelledby="reply-heading"
+            hidden
+          >
+            <p class="eyebrow">AKU INGIN KAMU TAHU</p>
+            <h2 id="reply-heading">Titip sebuah pesan</h2>
+            <p class="muted">
+              Sesuatu yang ingin kamu bilang, sesederhana “aku kangen”.
+            </p>
+            <p id="reply-context" class="pill" hidden></p>
+            <button
+              id="clear-reply-context"
+              class="text-button"
+              type="button"
+              hidden
+            >
+              Kirim tanpa mengaitkan kenangan
+            </button>
+            <form id="reply-form">
+              <label class="sr-only" for="reply-body"
+                >Pesan untuk pasanganmu</label
+              ><textarea
+                id="reply-body"
+                name="body"
+                rows="4"
+                maxlength="2000"
+                required
+                placeholder="Hari ini aku…"
+              ></textarea
+              ><button id="reply-submit" class="button small" type="submit">
+                Kirim pesan
+              </button>
+              <p id="reply-message" class="form-message" role="status"></p>
+              <p id="reply-cooldown" class="tiny muted" aria-live="polite"></p>
+            </form>
+          </section>
+        </div>
+        <footer class="site-footer">
+          <span aria-hidden="true">♡</span> Beberapa hal layak disimpan
+          selamanya.
+          <p id="install-help" class="tiny">
+            Di iPhone: buka lewat Safari → Bagikan → Tambah ke Layar Utama.
+          </p>
+        </footer>
+      </div>
+    </main>
+
+    <dialog id="admin-login-dialog" aria-labelledby="admin-login-heading">
+      <div class="dialog-body">
+        <button
+          class="dialog-close icon-button"
+          type="button"
+          data-close="admin-login-dialog"
+          aria-label="Tutup"
+        >
+          ×
+        </button>
+        <p class="eyebrow">DI BALIK CERITA KITA</p>
+        <h2 id="admin-login-heading">Masuk sebagai Admin</h2>
+        <form id="admin-login-form">
+          <label for="admin-email">Email Admin</label
+          ><input
+            id="admin-email"
+            name="email"
+            type="email"
+            required
+            autocomplete="username"
+          /><label for="admin-password">Kata sandi Admin</label
+          ><input
+            id="admin-password"
+            name="password"
+            type="password"
+            required
+            autocomplete="current-password"
+            maxlength="256"
+          /><button class="button full" type="submit">Masuk</button>
+          <p id="admin-login-message" class="form-message" role="status"></p>
+        </form>
+      </div>
+    </dialog>
+
+    <dialog
+      id="admin-dialog"
+      class="admin-dialog"
+      aria-labelledby="admin-heading"
+    >
+      <div class="dialog-body">
+        <button
+          class="dialog-close icon-button"
+          type="button"
+          data-close="admin-dialog"
+          aria-label="Tutup Ruang Admin"
+        >
+          ×
+        </button>
+        <p class="eyebrow">RAWAT CERITA KITA</p>
+        <h2 id="admin-heading">Ruang Admin</h2>
+        <details class="admin-section" open>
+          <summary>01 · Simpan kenangan baru</summary>
+          <form id="upload-form">
+            <label for="memory-file">Foto, video, atau audio</label
+            ><input
+              id="memory-file"
+              name="file"
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime,audio/mpeg,audio/mp4,audio/ogg,audio/wav,audio/x-wav,audio/webm"
+              required
+            />
+            <p class="tiny muted">
+              Maksimal 25 MB per file. Untuk video di HP, MP4 H.264 paling mudah
+              diputar.
+            </p>
+            <div id="upload-preview" class="upload-preview" hidden></div>
+            <label for="memory-title">Judul kenangan</label
+            ><input
+              id="memory-title"
+              name="title"
+              maxlength="120"
+              required
+              placeholder="Sore yang tidak ingin selesai"
+            /><label for="memory-caption">Caption</label
+            ><textarea
+              id="memory-caption"
+              name="caption"
+              rows="3"
+              maxlength="5000"
+              placeholder="Apa yang ingin kamu ingat dari hari itu?"
+            ></textarea>
+            <div class="form-grid">
+              <div>
+                <label for="memory-date">Tanggal kenangan</label
+                ><input id="memory-date" name="date" type="date" required />
+              </div>
+              <div>
+                <label for="memory-unlock">Buka kapsul pada (opsional)</label
+                ><input
+                  id="memory-unlock"
+                  name="unlock"
+                  type="datetime-local"
+                />
+              </div>
+            </div>
+            <p class="tiny muted">
+              Kosongkan tanggal buka agar langsung terlihat. Jam input mengikuti
+              zona waktu perangkatmu. Admin bisa melihat isi kapsul kapan saja.
+            </p>
+            <button class="button" type="submit">Simpan kenangan</button
+            ><progress
+              id="upload-progress"
+              aria-label="Sedang menyimpan kenangan"
+              hidden
+            ></progress>
+            <p id="upload-message" class="form-message" role="status"></p>
+          </form>
+        </details>
+        <details class="admin-section">
+          <summary>02 · Tambah impian bersama</summary>
+          <form id="bucket-form">
+            <label for="bucket-title">Apa yang ingin kita wujudkan?</label
+            ><input
+              id="bucket-title"
+              name="title"
+              maxlength="180"
+              required
+              placeholder="Melihat matahari terbit di pantai"
+            /><button class="button small" type="submit">
+              Tambahkan impian
+            </button>
+            <p id="bucket-message" class="form-message" role="status"></p>
+          </form>
+        </details>
+        <details class="admin-section">
+          <summary>03 · Tulis surat cinta</summary>
+          <form id="letter-form">
+            <label for="letter-title">Judul surat</label
+            ><input
+              id="letter-title"
+              name="title"
+              maxlength="120"
+              required
+              placeholder="Untuk kamu, yang selalu kupilih"
+            /><label for="letter-body">Isi surat</label
+            ><textarea
+              id="letter-body"
+              name="body"
+              rows="8"
+              maxlength="20000"
+              required
+              placeholder="Hai, sayang…"
+            ></textarea>
+            <p class="tiny muted">
+              Surat langsung bisa dibuka Viewer setelah disimpan. Baris baru
+              akan dipertahankan.
+            </p>
+            <button class="button small" type="submit">
+              Simpan surat cinta
+            </button>
+            <p id="letter-message" class="form-message" role="status"></p>
+          </form>
+        </details>
+        <details class="admin-section">
+          <summary>04 · Nama, waktu, dan musik</summary>
+          <form id="settings-form">
+            <label for="settings-names">Nama kalian</label
+            ><input
+              id="settings-names"
+              name="names"
+              maxlength="100"
+              required
+              placeholder="Namamu & Nama pasangan"
+            /><label for="settings-start">Mulai bersama (opsional)</label
+            ><input
+              id="settings-start"
+              name="start"
+              type="datetime-local"
+            /><label for="settings-timezone"
+              >Zona waktu jurnal dan tampilan tanggal</label
+            ><select id="settings-timezone" name="timezone">
+              <option value="Asia/Jakarta">WIB · Asia/Jakarta</option>
+              <option value="Asia/Makassar">WITA · Asia/Makassar</option>
+              <option value="Asia/Jayapura">WIT · Asia/Jayapura</option>
+              <option value="UTC">UTC</option></select
+            ><label for="settings-event">Nama hari spesial</label
+            ><input
+              id="settings-event"
+              name="event"
+              maxlength="120"
+              placeholder="Liburan kecil kita"
+            /><label for="settings-event-at">Tanggal dan jam hari spesial</label
+            ><input
+              id="settings-event-at"
+              name="eventAt"
+              type="datetime-local"
+            /><label for="settings-music">Musik latar</label
+            ><select id="settings-music" name="music">
+              <option value="">Tanpa musik</option>
+            </select>
+            <p class="tiny muted">
+              Unggah audio terlebih dahulu. Pilihan di sini hanya berisi audio
+              yang sudah terbuka. Musik diputar setelah tombolnya ditekan. Semua
+              input jam mengikuti zona perangkat.
+            </p>
+            <button class="button small" type="submit">
+              Simpan pengaturan
+            </button>
+            <p id="settings-message" class="form-message" role="status"></p>
+          </form>
+        </details>
+        <details id="inbox-details" class="admin-section">
+          <summary>05 · Pesan dan jurnal pasangan</summary>
+          <button id="inbox-refresh" class="button small ghost" type="button">
+            Muat ulang
+          </button>
+          <p id="inbox-message" class="form-message" role="status"></p>
+          <h3>Pesan masuk</h3>
+          <div id="admin-replies"></div>
+          <button id="more-replies" class="text-button" type="button" hidden>
+            Pesan sebelumnya
+          </button>
+          <h3>Jurnal harian</h3>
+          <div id="admin-journals"></div>
+          <button id="more-journals" class="text-button" type="button" hidden>
+            Jurnal sebelumnya
+          </button>
+        </details>
+      </div>
+    </dialog>
+
+    <dialog
+      id="memory-dialog"
+      class="lightbox"
+      aria-labelledby="memory-view-title"
+    >
+      <div class="dialog-body">
+        <button
+          class="dialog-close icon-button"
+          type="button"
+          data-close="memory-dialog"
+          aria-label="Tutup kenangan"
+        >
+          ×
+        </button>
+        <div id="memory-view-media" class="memory-view-media"></div>
+        <div class="lightbox-copy">
+          <p id="memory-view-date" class="eyebrow"></p>
+          <h2 id="memory-view-title"></h2>
+          <p id="memory-view-caption" class="preserve-lines"></p>
+          <button id="memory-reply" class="button small" type="button" hidden>
+            Balas kenangan ini
+          </button>
+        </div>
+      </div>
+    </dialog>
+    <dialog
+      id="letter-dialog"
+      class="letter-dialog"
+      aria-labelledby="letter-view-title"
+    >
+      <article class="dialog-body">
+        <button
+          class="dialog-close icon-button"
+          type="button"
+          data-close="letter-dialog"
+          aria-label="Tutup surat"
+        >
+          ×
+        </button>
+        <p class="eyebrow">SURAT YANG KUSIMPAN UNTUKMU</p>
+        <h2 id="letter-view-title"></h2>
+        <p id="letter-view-date" class="tiny muted"></p>
+        <div id="letter-view-body" class="letter-body preserve-lines"></div>
+        <p class="letter-signature">Dengan seluruh hatiku, ♡</p>
+      </article>
+    </dialog>
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+    <audio id="background-music" loop preload="none"></audio>
+    <noscript
+      ><p class="banner">
+        Aktifkan JavaScript untuk membuka Couple Memory Vault.
+      </p></noscript
+    >
+  </body>
+</html>
