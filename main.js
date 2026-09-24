@@ -3,7 +3,10 @@
   "use strict";
   const db = window.vaultClient;
   const cfg = window.VAULT_CONFIG;
-  const $ = (id) => document.getElementById(id);
+  const local = window.VaultLocal;
+  const pages = window.VaultPages;
+  const $ = (id) => pages.get(id);
+  const all = (selector) => pages.all(selector);
   const state = {
     user: null,
     role: null,
@@ -12,6 +15,7 @@
     memories: [],
     letters: [],
     more: false,
+    galleryOffset: 0,
     musicTracks: [],
     musicTrackId: null,
     view: "masonry",
@@ -30,6 +34,7 @@
     galleryBusy = false;
   let authenticating = false,
     currentMemory = null,
+    memoryOpener = null,
     observer,
     activeDownloads = 0;
   let downloadQueue = [],
@@ -64,6 +69,8 @@
   }
   function errorText(error) {
     const raw = String(error?.message || error || "Terjadi kesalahan.");
+    if (error?.name === "QuotaExceededError")
+      return "Penyimpanan perangkat penuh. Jangan tutup tulisanmu; kosongkan ruang dahulu.";
     if (!navigator.onLine)
       return "Kamu sedang offline. Sambungkan internet lalu coba lagi.";
     if (/abort|fetch|network|timeout/i.test(raw))
@@ -77,7 +84,7 @@
     if (/row-level security|permission denied/i.test(raw))
       return "Akses tidak diizinkan. Periksa role akun dan setup.sql.";
     if (/schema cache|does not exist|PGRST202/i.test(raw))
-      return "Konfigurasi database belum lengkap. Jalankan setup.sql dahulu.";
+      return "Fitur belum siap di database. Jalankan upgrade-v4.sql, lalu muat ulang.";
     if (/COOLDOWN:/.test(raw)) return raw.replace("COOLDOWN: ", "");
     return raw;
   }
@@ -87,19 +94,21 @@
     return data;
   }
   async function readAll(table, fields, order = "created_at") {
-    const all = [];
-    for (let offset = 0; ; offset += 250) {
-      const rows = await unwrap(
-        db
-          .from(table)
-          .select(fields)
-          .order(order, { ascending: false })
-          .order("id")
-          .range(offset, offset + 249),
-      );
-      all.push(...rows);
-      if (rows.length < 250) return all;
-    }
+    return local.cached(`table:${table}:${fields}:${order}`, async () => {
+      const all = [];
+      for (let offset = 0; ; offset += 250) {
+        const rows = await unwrap(
+          db
+            .from(table)
+            .select(fields)
+            .order(order, { ascending: false })
+            .order("id")
+            .range(offset, offset + 249),
+        );
+        all.push(...rows);
+        if (rows.length < 250) return all;
+      }
+    });
   }
   function formatDate(value, withTime = false) {
     if (!value) return "";
@@ -124,7 +133,118 @@
       .toISOString()
       .slice(0, 16);
   }
+  function clearValidation(form) {
+    form.querySelectorAll(".field-error").forEach((el) => el.remove());
+    form.querySelectorAll("[aria-invalid]").forEach((el) => {
+      el.removeAttribute("aria-invalid");
+      const ids = (el.getAttribute("aria-describedby") || "")
+        .split(" ")
+        .filter((x) => !x.endsWith("-error"));
+      if (ids.length) el.setAttribute("aria-describedby", ids.join(" "));
+      else el.removeAttribute("aria-describedby");
+    });
+  }
+  function fieldError(control, text) {
+    control.setAttribute("aria-invalid", "true");
+    const id = `${control.id}-error`;
+    $(id)?.remove();
+    const error = node("p", "field-error", text);
+    error.id = id;
+    control.setAttribute(
+      "aria-describedby",
+      [
+        ...new Set([
+          ...(control.getAttribute("aria-describedby") || "")
+            .split(" ")
+            .filter(Boolean),
+          id,
+        ]),
+      ].join(" "),
+    );
+    // Keep the message outside the password + visibility-button flex row.
+    (control.closest(".password-field") || control).insertAdjacentElement(
+      "afterend",
+      error,
+    );
+  }
+  function validateForm(form) {
+    clearValidation(form);
+    let first;
+    const fail = (el, text) => {
+      fieldError(el, text);
+      first ||= el;
+    };
+    for (const control of form.elements) {
+      if (
+        !control.willValidate ||
+        control.disabled ||
+        ["submit", "button", "checkbox"].includes(control.type)
+      )
+        continue;
+      const value = String(control.value || "").trim();
+      const name =
+        control.labels?.[0]?.textContent.trim().replace(/\s+/g, " ") ||
+        "Bagian ini";
+      if (control.required && !value)
+        fail(control, `${name} perlu diisi dahulu, ya.`);
+      else if (control.validity.typeMismatch)
+        fail(
+          control,
+          "Tulis alamat email yang lengkap, misalnya nama@email.com.",
+        );
+      else if (
+        control.validity.badInput ||
+        control.validity.rangeOverflow ||
+        control.validity.rangeUnderflow
+      )
+        fail(
+          control,
+          `Isi ${name.toLowerCase()} dalam rentang ${control.min} sampai ${control.max}.`,
+        );
+      else if (control.maxLength > 0 && value.length > control.maxLength)
+        fail(control, `Maksimal ${control.maxLength} karakter, ya.`);
+      else if (
+        control.type === "datetime-local" &&
+        value &&
+        (!Number.isFinite(Date.parse(value)) ||
+          (control.id.includes("unlock") && Date.parse(value) <= now()))
+      )
+        fail(control, "Pilih tanggal dan jam di masa depan.");
+    }
+    if (form.id === "upload-form") {
+      const lat = $("memory-lat"),
+        lng = $("memory-lng");
+      if (
+        (lat.value || lng.value || $("memory-place").value.trim()) &&
+        (!lat.value || !lng.value)
+      )
+        fail(
+          !lat.value ? lat : lng,
+          "Pilih titik di peta atau lengkapi kedua koordinat.",
+        );
+    }
+    first?.focus();
+    return !first;
+  }
+  document.addEventListener("input", (event) => {
+    const el = event.target;
+    if (el.hasAttribute("aria-invalid")) {
+      el.removeAttribute("aria-invalid");
+      $(el.id + "-error")?.remove();
+      const described = (el.getAttribute("aria-describedby") || "")
+        .split(" ")
+        .filter((id) => id && id !== el.id + "-error");
+      if (described.length)
+        el.setAttribute("aria-describedby", described.join(" "));
+      else el.removeAttribute("aria-describedby");
+    }
+  });
+  document.addEventListener("reset", (event) => clearValidation(event.target));
   async function formAction(form, messageId, action) {
+    if (!validateForm(form)) {
+      message(messageId, "Ada bagian yang perlu dilengkapi di atas.", true);
+      return;
+    }
     if (form.dataset.busy) return;
     const controls = [...form.elements];
     const oldDisabled = controls.map((control) => control.disabled);
@@ -144,6 +264,7 @@
       });
       delete form.dataset.busy;
       form.removeAttribute("aria-busy");
+      window.VaultFeatures?.formDone(form.id);
     }
   }
   function requireClient() {
@@ -182,11 +303,21 @@
     syncMusicUI();
   }
   function wipeUI() {
+    if (local.account) {
+      const oldAccount = local.account;
+      local
+        .purge()
+        .catch(() => {})
+        .finally(() => {
+          if (local.account === oldAccount) local.release();
+        });
+    }
     state.epoch++;
     state.user = null;
     state.role = null;
     state.settings = null;
     state.memories = [];
+    state.galleryOffset = 0;
     state.letters = [];
     state.musicTracks = [];
     state.musicTrackId = null;
@@ -228,12 +359,15 @@
       "reply-context",
     ])
       $(id).replaceChildren();
-    document.querySelectorAll("form").forEach((form) => form.reset());
+    all("form").forEach((form) => {
+      form.reset();
+      clearValidation(form);
+    });
     $("viewer-password").type = "password";
     $("toggle-password").textContent = "Lihat";
     $("toggle-password").setAttribute("aria-pressed", "false");
     $("toggle-password").setAttribute("aria-label", "Tampilkan kata sandi");
-    document.querySelectorAll(".form-message").forEach((element) => {
+    all(".form-message").forEach((element) => {
       element.textContent = "";
     });
     $("app-screen").hidden = true;
@@ -263,8 +397,16 @@
     stopMusic();
     document.dispatchEvent(new CustomEvent("cmv:locked"));
   }
-  async function lock() {
+  async function lock(force = false) {
+    if (
+      force !== true &&
+      window.VaultFeatures &&
+      !(await window.VaultFeatures.canLock())
+    )
+      return;
     authenticating = true;
+    await local.purge().catch(() => {});
+    local.release();
     wipeUI();
     if (!db) {
       authenticating = false;
@@ -275,6 +417,7 @@
       if (error) throw error;
     } catch {
       // Hilangkan token lokal juga ketika endpoint Auth sedang tidak terjangkau.
+      localStorage.removeItem(cfg.SESSION_KEY);
       sessionStorage.removeItem(cfg.SESSION_KEY);
       location.reload();
     } finally {
@@ -300,19 +443,23 @@
     if (!session) return;
     const epoch = state.epoch;
     let context;
+    local.use(session.user.id);
     try {
-      context = await unwrap(db.rpc("get_context"));
+      context = await local.cached("context", () =>
+        unwrap(db.rpc("get_context")),
+      );
       if (expectedRole && context.role !== expectedRole)
         throw new Error("Akun ini tidak memiliki peran yang sesuai.");
     } catch (error) {
-      await db.auth.signOut({ scope: "local" });
+      if (navigator.onLine && !local.networkError(error))
+        await db.auth.signOut({ scope: "local" });
       throw error;
     }
     if (epoch !== state.epoch) return;
     state.epoch++;
     state.user = session.user;
     state.role = context.role;
-    syncTime(context.server_time);
+    if (navigator.onLine) syncTime(context.server_time);
     state.nextReplyAt = Date.parse(context.reply_ready_at) || 0;
     $("viewer-password").value = "";
     $("admin-password").value = "";
@@ -337,8 +484,8 @@
   }
   async function loadSettings() {
     const epoch = state.epoch;
-    const settings = await unwrap(
-      db.from("app_settings").select("*").eq("id", 1).single(),
+    const settings = await local.cached("settings", () =>
+      unwrap(db.from("app_settings").select("*").eq("id", 1).single()),
     );
     if (!alive(epoch)) return;
     state.settings = settings;
@@ -351,15 +498,18 @@
     const epoch = state.epoch;
     message("app-message", "Sedang membuka cerita kita…");
     try {
-      const context = await unwrap(db.rpc("get_context"));
+      const context = await local.cached("context", () =>
+        unwrap(db.rpc("get_context")),
+      );
       if (!alive(epoch)) return;
       if (context.role !== state.role) {
-        await lock();
+        await lock(true);
         return;
       }
-      syncTime(context.server_time);
+      if (navigator.onLine) syncTime(context.server_time);
       state.nextReplyAt = Date.parse(context.reply_ready_at) || 0;
       await loadSettings();
+      await window.VaultFeatures?.load();
       const tasks = [
         loadGallery(true),
         loadBuckets(),
@@ -379,7 +529,7 @@
       );
     } catch (error) {
       if (error.code === "42501") {
-        await lock();
+        await lock(true);
         message("login-message", errorText(error), true);
       } else if (alive(epoch)) message("app-message", errorText(error), true);
     } finally {
@@ -393,7 +543,9 @@
     const cached = {};
     cached.promise = (async () => {
       // Authenticated download + RLS, bukan public URL / signed URL yang bisa dibagikan.
-      const blob = await unwrap(db.storage.from(cfg.BUCKET).download(path));
+      const blob = await local.media(path, () =>
+        unwrap(db.storage.from(cfg.BUCKET).download(path)),
+      );
       if (!alive(epoch)) throw new Error("Sesi sudah dikunci.");
       cached.url = URL.createObjectURL(blob);
       return cached.url;
@@ -411,11 +563,11 @@
   function pumpPhotos() {
     while (activeDownloads < 3 && downloadQueue.length) {
       const task = downloadQueue.shift();
-      if (!alive(task.epoch) || !task.visual.isConnected) continue;
+      if (!alive(task.epoch)) continue;
       activeDownloads++;
       mediaURL(task.memory.preview_path || task.memory.media_path)
         .then((url) => {
-          if (!alive(task.epoch) || !task.visual.isConnected) return;
+          if (!alive(task.epoch)) return;
           const img = node("img");
           img.src = url;
           img.alt = task.memory.title;
@@ -435,7 +587,7 @@
           task.visual.prepend(img);
         })
         .catch(() => {
-          if (alive(task.epoch) && task.visual.isConnected) {
+          if (alive(task.epoch)) {
             const label = task.visual.querySelector(".loading-placeholder");
             if (label)
               label.textContent = "Belum termuat. Ketuk untuk mencoba lagi.";
@@ -452,6 +604,7 @@
       "article",
       `memory-card${memory.is_locked ? " capsule" : ""}`,
     );
+    card.dataset.memoryId = memory.id;
     const visual = node("div", "memory-visual");
     const copy = node("div", "memory-copy");
     if (memory.is_locked) {
@@ -488,6 +641,8 @@
       );
     button.append(visual, copy);
     card.append(button);
+    if (window.VaultFeatures)
+      card.append(window.VaultFeatures.reactionBar("memory", memory.id));
     button.addEventListener("click", () => openMemory(memory));
     return card;
   }
@@ -496,10 +651,14 @@
     galleryBusy = true;
     const epoch = state.epoch;
     $("load-more").disabled = true;
+    $("gallery").setAttribute("aria-busy", "true");
+    $("gallery-status").textContent = "Membuka halaman kenangan…";
     try {
-      const offset = reset ? 0 : state.memories.length;
-      const rows = await unwrap(
-        db.rpc("list_memories", { p_offset: offset, p_limit: cfg.PAGE_SIZE }),
+      const offset = reset ? 0 : state.galleryOffset;
+      const rows = await local.cached(`gallery:${offset}`, () =>
+        unwrap(
+          db.rpc("list_memories", { p_offset: offset, p_limit: cfg.PAGE_SIZE }),
+        ),
       );
       if (!alive(epoch)) return;
       if (reset) {
@@ -510,10 +669,15 @@
       const known = new Set(state.memories.map((m) => m.id));
       const fresh = rows.filter((m) => !known.has(m.id));
       state.memories.push(...fresh);
+      state.galleryOffset = offset + rows.length;
       fresh.forEach((memory) => $("gallery").append(memoryCard(memory)));
       state.more = rows.length === cfg.PAGE_SIZE;
       $("load-more").hidden = !state.more;
+      window.VaultFeatures?.renderMap();
       $("gallery-empty").hidden = state.memories.length > 0;
+      $("gallery-status").textContent = state.memories.length
+        ? `${state.memories.length} kenangan ditampilkan${state.more ? " · muat berikutnya saat kamu siap." : " · semua sudah ditampilkan."}`
+        : "";
       if (!observer && "IntersectionObserver" in window)
         observer = new IntersectionObserver(
           (entries) => {
@@ -534,10 +698,14 @@
           if (observer) observer.observe(visual);
           else queuePhoto(visual, visual._memory);
         });
+    } catch (error) {
+      if (alive(epoch)) $("gallery-status").textContent = errorText(error);
+      throw error;
     } finally {
       if (alive(epoch)) {
         galleryBusy = false;
         $("load-more").disabled = false;
+        $("gallery").removeAttribute("aria-busy");
       }
     }
   }
@@ -560,10 +728,13 @@
   }
   async function openMemory(memory, immersive = false) {
     if (memory.is_locked || !state.user) return;
+    memoryOpener = document.activeElement;
     const epoch = state.epoch;
     stopMusic();
     stopMedia($("memory-view-media"));
     currentMemory = memory;
+    $("memory-location").onclick = () =>
+      window.VaultFeatures.openLocation(memory);
     $("memory-view-title").textContent = memory.title;
     $("memory-view-caption").textContent = memory.caption;
     $("memory-view-date").textContent = formatDate(memory.occurred_on);
@@ -631,6 +802,7 @@
       const label = node("label");
       const input = node("input");
       input.type = "checkbox";
+      input.disabled = !navigator.onLine;
       input.checked = item.is_completed;
       label.append(input, node("span", "", item.title));
       li.append(label);
@@ -669,13 +841,25 @@
   }
   async function loadLetters() {
     const epoch = state.epoch;
-    const rows = await readAll("love_letters", "id,title,created_at");
+    const old = await readAll("love_letters", "*");
+    const rows = [
+      ...old,
+      ...(window.VaultFeatures?.entries || []).filter(
+        (e) => e.kind === "letter",
+      ),
+    ].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
     if (!alive(epoch)) return;
     const previous = $("letter-select").value;
     state.letters = rows;
     $("letter-select").replaceChildren(
       ...rows.map((letter) => {
-        const option = node("option", "", letter.title);
+        const option = node(
+          "option",
+          "",
+          letter.is_locked
+            ? `🔒 Buka ${formatDate(letter.unlock_at, true)}`
+            : letter.title,
+        );
         option.value = letter.id;
         return option;
       }),
@@ -699,12 +883,8 @@
     $("envelope-button").classList.add("is-open");
     try {
       const [letter] = await Promise.all([
-        unwrap(
-          db
-            .from("love_letters")
-            .select("*")
-            .eq("id", $("letter-select").value)
-            .single(),
+        Promise.resolve(
+          state.letters.find((e) => e.id === $("letter-select").value),
         ),
         new Promise((resolve) => {
           envelopeTimer = setTimeout(
@@ -714,6 +894,19 @@
         }),
       ]);
       if (!alive(epoch)) return;
+      if (!letter) throw new Error("Surat belum tersedia. Muat ulang dahulu.");
+      if (letter.is_locked) {
+        toast(
+          `Kapsul masih terkunci sampai ${formatDate(letter.unlock_at, true)}. Sambungkan internet saat waktunya tiba.`,
+        );
+        return;
+      }
+      $("letter-reactions").replaceChildren(
+        window.VaultFeatures.reactionBar(
+          letter.kind ? "entry" : "letter",
+          letter.id,
+        ),
+      );
       $("letter-view-title").textContent = letter.title;
       $("letter-view-date").textContent = formatDate(letter.created_at);
       $("letter-view-body").textContent = letter.body;
@@ -726,8 +919,19 @@
   }
   async function loadDaily() {
     const epoch = state.epoch;
-    const prompt = await unwrap(db.rpc("get_daily_prompt"));
+    let prompt = await local.cached("daily-prompt", () =>
+      unwrap(db.rpc("get_daily_prompt")),
+    );
+    const today = window.VaultFeatures?.today();
+    if (today && prompt.date !== today)
+      prompt = {
+        date: today,
+        question: "Hal kecil apa yang ingin kamu ingat hari ini?",
+        answer: "",
+      };
     if (!alive(epoch)) return;
+    const restored = window.VaultFeatures?.journalDraft;
+    if (restored) prompt = { ...prompt, ...restored };
     if (state.prompt && state.prompt.date !== prompt.date && state.journalDirty)
       message(
         "journal-message",
@@ -736,13 +940,30 @@
     state.prompt = prompt;
     $("daily-question").textContent = prompt.question;
     $("daily-date").textContent = formatDate(prompt.date);
-    if (!state.journalDirty) $("journal-answer").value = prompt.answer || "";
-    const rows = await unwrap(
-      db
-        .from("daily_journals")
-        .select("id,author_id,journal_date,question,answer")
-        .order("journal_date", { ascending: false })
-        .limit(7),
+    // Draf tidak ditimpa ketika arsip dimuat ulang.
+    if (!state.journalDirty && !$("journal-answer").value)
+      $("journal-answer").value = "";
+    const old = await local.cached("journal-history", () =>
+      unwrap(
+        db
+          .from("daily_journals")
+          .select("id,author_id,journal_date,question,answer")
+          .order("journal_date", { ascending: false })
+          .limit(30),
+      ),
+    );
+    const rows = [
+      ...old,
+      ...(window.VaultFeatures?.entries || [])
+        .filter((e) => e.kind === "journal")
+        .map((e) => ({
+          ...e,
+          journal_date: e.occurred_on,
+          question: e.title,
+          answer: e.body,
+        })),
+    ].sort((a, b) =>
+      String(b.journal_date).localeCompare(String(a.journal_date)),
     );
     if (!alive(epoch)) return;
     $("journal-history").replaceChildren(
@@ -755,8 +976,21 @@
             `${formatDate(entry.journal_date)} · ${entry.author_id === state.user.id ? "Darimu" : "Dari pasanganmu"}`,
           ),
           node("h4", "", entry.question),
-          node("p", "", entry.answer),
+          node(
+            "p",
+            "preserve-lines",
+            entry.is_locked
+              ? `🔒 Terkunci sampai ${formatDate(entry.unlock_at, true)}. Buka saat online setelah waktunya tiba.`
+              : entry.answer,
+          ),
         );
+        if (!entry.is_locked && window.VaultFeatures)
+          article.append(
+            window.VaultFeatures.reactionBar(
+              entry.kind ? "entry" : "journal",
+              entry.id,
+            ),
+          );
         return article;
       }),
     );
@@ -786,6 +1020,7 @@
       $("relationship-days").textContent = "—";
       $("relationship-detail").textContent = "Tanggal jadian belum diatur.";
     }
+    pages.query(".legacy-event").hidden = !settings?.event_at;
     $("event-name").textContent = settings?.event_name || "HARI YANG DINANTI";
     if (settings?.event_at) {
       const remaining = Math.max(
@@ -802,8 +1037,10 @@
       $("event-countdown").textContent = "Belum ada rencana";
       $("event-detail").textContent = "Masih banyak hal indah menanti.";
     }
+    if (!navigator.onLine) $("reply-submit").disabled = true;
     const wait = Math.max(0, Math.ceil((state.nextReplyAt - now()) / 1000));
-    $("reply-submit").disabled = wait > 0 || state.replyBusy;
+    $("reply-submit").disabled =
+      wait > 0 || state.replyBusy || !navigator.onLine;
     $("reply-cooldown").textContent = wait
       ? `Pesan berikutnya bisa dikirim dalam ${wait} detik.`
       : "Satu pesan setiap 30 detik, supaya tiap kata punya ruang.";
@@ -930,9 +1167,12 @@
   async function setupPWA() {
     if (!("serviceWorker" in navigator) || !window.isSecureContext) return;
     try {
-      const registration = await navigator.serviceWorker.register("./sw.js", {
-        updateViaCache: "none",
-      });
+      const registration = await navigator.serviceWorker.register(
+        new URL("sw.js", pages.base),
+        {
+          updateViaCache: "none",
+        },
+      );
       const readyToUpdate = () => {
         waitingWorker = registration.waiting;
         if (waitingWorker && navigator.serviceWorker.controller)
@@ -957,8 +1197,10 @@
   window.Vault = {
     db,
     cfg,
+    local,
     state,
     $,
+    all,
     now,
     alive,
     node,
@@ -970,6 +1212,11 @@
     formatDate,
     localInput,
     formAction,
+    validateForm,
+    clearValidation,
+    syncTime,
+    openMemory,
+    loadDaily,
     login,
     refresh,
     loadBuckets,
@@ -987,7 +1234,16 @@
   $("memory-dialog").addEventListener("close", () => {
     stopMedia($("memory-view-media"));
     $("memory-view-media").replaceChildren();
+    const card = document.querySelector(
+      `[data-memory-id="${CSS.escape(currentMemory?.id || "")}"] .memory-open`,
+    );
     currentMemory = null;
+    if (state.user)
+      (memoryOpener?.isConnected
+        ? memoryOpener
+        : card || document.querySelector('.section-nav [aria-current="page"]')
+      )?.focus({ preventScroll: true });
+    memoryOpener = null;
   });
   let taps = [];
   document.querySelectorAll("[data-admin-unlock]").forEach((button) =>
@@ -1038,7 +1294,12 @@
     const epoch = state.epoch;
     $("surprise-button").disabled = true;
     try {
-      const rows = await unwrap(db.rpc("random_memory"));
+      const rows = navigator.onLine
+        ? await unwrap(db.rpc("random_memory"))
+        : state.memories
+            .filter((m) => !m.is_locked)
+            .sort(() => Math.random() - 0.5)
+            .slice(0, 1);
       if (!alive(epoch)) return;
       if (rows.length) await openMemory(rows[0], true);
       else toast("Belum ada kenangan terbuka untuk kejutan hari ini.");
@@ -1054,26 +1315,14 @@
   });
   $("journal-form").addEventListener("submit", (event) => {
     event.preventDefault();
-    const epoch = state.epoch,
-      answer = $("journal-answer").value.trim(),
-      day = state.prompt?.date;
     formAction(event.currentTarget, "journal-message", async () => {
-      if (!day)
-        throw new Error("Muat pertanyaan dahulu dengan tombol muat ulang.");
-      await unwrap(
-        db.rpc("save_daily_journal", { p_answer: answer, p_day: day }),
-      );
-      if (!alive(epoch)) return;
-      state.journalDirty = false;
-      message("journal-message", "Cerita hari ini sudah tersimpan. ♡");
-      await loadDaily();
+      await window.VaultFeatures.saveEntry("journal");
     });
   });
-  $("memory-reply").addEventListener("click", () => {
+  $("memory-reply").addEventListener("click", async () => {
     replyContext(currentMemory);
     $("memory-dialog").close();
-    $("reply-panel").scrollIntoView({ behavior: "smooth", block: "center" });
-    $("reply-body").focus({ preventScroll: true });
+    await pages.navigate("surat", { focusId: "reply-body" });
   });
   $("clear-reply-context").addEventListener("click", () => replyContext(null));
   $("reply-form").addEventListener("submit", async (event) => {
@@ -1100,7 +1349,7 @@
         if (/COOLDOWN/.test(error.message)) {
           const context = await unwrap(db.rpc("get_context"));
           if (alive(epoch)) {
-            syncTime(context.server_time);
+            if (navigator.onLine) syncTime(context.server_time);
             state.nextReplyAt = Date.parse(context.reply_ready_at) || 0;
           }
         }
@@ -1131,14 +1380,8 @@
       $("music-note").textContent =
         "Di perangkat ini, gunakan tombol volume HP untuk mengatur suara.";
   });
-  document.querySelectorAll(".section-nav a").forEach((link) =>
-    link.addEventListener("click", () => {
-      document
-        .querySelectorAll(".section-nav a")
-        .forEach((other) => other.removeAttribute("aria-current"));
-      link.setAttribute("aria-current", "location");
-    }),
-  );
+  // The router owns aria-current and keeps the audio element outside page swaps.
+  document.addEventListener("cmv:page", setupReveals);
   window.addEventListener("beforeinstallprompt", (event) => {
     event.preventDefault();
     installPrompt = event;
@@ -1157,8 +1400,8 @@
   });
   $("update-button").addEventListener("click", () => {
     if (
-      state.journalDirty ||
-      document.querySelector("form[data-busy]") ||
+      window.VaultFeatures?.unsaved ||
+      pages.query("form[data-busy]") ||
       $("admin-dialog").open
     ) {
       toast("Simpan pekerjaanmu dan tutup ruang bersama sebelum memuat ulang.");
@@ -1168,22 +1411,24 @@
   });
   window.addEventListener("offline", () => {
     $("network-banner").hidden = false;
-    wipeUI();
-    message("login-message", "Sambungkan internet, lalu buka kenangan lagi.");
+    window.VaultFeatures?.status();
+    if (state.user)
+      toast("Kamu bisa lanjut menulis. Arsip tersimpan tetap tersedia.");
   });
   window.addEventListener("online", () => {
     $("network-banner").hidden = true;
-    message("login-message", "Koneksi kembali. Silakan masuk.");
+    if (state.user) window.VaultFeatures?.sync().then(refresh);
+    else message("login-message", "Koneksi kembali. Silakan masuk.");
   });
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden && state.user && navigator.onLine) refresh();
   });
   window.addEventListener("pagehide", () => stopMusic());
   window.addEventListener("pageshow", (event) => {
-    if (event.persisted && state.user) lock();
+    if (event.persisted && state.user) refresh();
   });
   window.addEventListener("beforeunload", (event) => {
-    if (state.journalDirty || document.querySelector("form[data-busy]")) {
+    if (window.VaultFeatures?.unsaved || pages.query("form[data-busy]")) {
       event.preventDefault();
       event.returnValue = "";
     }
@@ -1194,7 +1439,7 @@
       state.user &&
       navigator.onLine &&
       !document.hidden &&
-      !document.querySelector("form[data-busy]")
+      !pages.query("form[data-busy]")
     )
       refresh();
   }, 60000);
@@ -1212,476 +1457,23 @@
     db.auth.onAuthStateChange((event) => {
       if (event === "SIGNED_OUT") wipeUI();
     });
-    if (navigator.onLine)
-      db.auth
-        .getSession()
-        .then(async ({ data, error }) => {
-          if (error) throw error;
-          if (data.session && !state.user && !authenticating)
-            await enter(data.session);
-        })
-        .catch((error) => message("login-message", errorText(error), true));
-  }
-})();
-
-/* Formulir kontribusi bersama dan pengaturan Admin. */
-(() => {
-  "use strict";
-  const V = window.Vault;
-  const { $, db, cfg, state, unwrap, message, node } = V;
-  let previewURL = null,
-    inboxBusy = false;
-  const pageSize = 20;
-  const offsets = { replies: 0, daily_journals: 0 };
-  const formats = Object.freeze({
-    "image/jpeg": ["jpg", "image"],
-    "image/png": ["png", "image"],
-    "image/webp": ["webp", "image"],
-    "image/gif": ["gif", "image"],
-    "video/mp4": ["mp4", "video"],
-    "video/webm": ["webm", "video"],
-    "video/quicktime": ["mov", "video"],
-    "audio/mpeg": ["mp3", "audio"],
-    "audio/mp4": ["m4a", "audio"],
-    "audio/ogg": ["ogg", "audio"],
-    "audio/wav": ["wav", "audio"],
-    "audio/x-wav": ["wav", "audio"],
-    "audio/webm": ["webm", "audio"],
-  });
-  function requireMember() {
-    if (!db || !state.user || !["admin", "viewer"].includes(state.role))
-      throw new Error("Silakan masuk ke akunmu dahulu.");
-    if (!navigator.onLine)
-      throw new Error("Sambungkan internet sebelum menyimpan.");
-  }
-  function requireAdmin() {
-    if (!db || state.role !== "admin" || !state.user)
-      throw new Error("Silakan masuk sebagai Admin dahulu.");
-    if (!navigator.onLine)
-      throw new Error("Sambungkan internet sebelum menyimpan.");
-  }
-  function fileFormat(file) {
-    if (!file || !file.size)
-      throw new Error("Pilih file yang berisi foto, video, atau audio.");
-    if (file.size > cfg.MAX_UPLOAD_BYTES)
-      throw new Error(
-        "Ukuran file melebihi 25 MB. Kompres dahulu, lalu coba lagi.",
-      );
-    if (!formats[file.type])
-      throw new Error(
-        "Format belum didukung. Pilih JPG, PNG, WebP, GIF, MP4, WebM, MOV, MP3, M4A, OGG, atau WAV.",
-      );
-    return formats[file.type];
-  }
-  async function makePreview(file) {
-    // File asli tidak diubah. Versi WebP hanya untuk galeri yang lebih ringan.
-    const url = URL.createObjectURL(file);
-    try {
-      const img = new Image();
-      img.src = url;
-      await img.decode();
-      const scale = Math.min(
-        1,
-        1600 / Math.max(img.naturalWidth, img.naturalHeight),
-      );
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
-      canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
-      canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
-      const blob = await new Promise((resolve) =>
-        canvas.toBlob(resolve, "image/webp", 0.9),
-      );
-      return blob?.type === "image/webp" ? blob : null;
-    } finally {
-      URL.revokeObjectURL(url);
-    }
-  }
-  function clearPreview() {
-    V.stopMedia($("upload-preview"));
-    $("upload-preview").replaceChildren();
-    $("upload-preview").hidden = true;
-    if (previewURL) URL.revokeObjectURL(previewURL);
-    previewURL = null;
-  }
-  function bindForm(id, messageId, action) {
-    $(id).addEventListener("submit", (event) => {
-      event.preventDefault();
-      const form = event.currentTarget;
-      const data = new FormData(form); // Sebelum form dinonaktifkan.
-      V.formAction(form, messageId, async () => {
-        requireMember();
-        await action(data, form, state.epoch);
-      });
-    });
-  }
-  async function refreshAfterSave(messageId, success) {
-    message(messageId, success);
-    await V.refresh();
-  }
-  async function fillSettings() {
-    requireAdmin();
-    const epoch = state.epoch;
-    await V.loadSettings();
-    const rows = await V.readAll(
-      "memories",
-      "id,title,media_kind,unlock_at,created_at",
-    );
-    if (!V.alive(epoch)) return;
-    const settings = state.settings;
-    $("settings-names").value = settings.couple_names;
-    $("settings-start").value = settings.relationship_started_at
-      ? V.localInput(settings.relationship_started_at)
-      : "";
-    $("settings-timezone").value = settings.timezone;
-    $("settings-event").value = settings.event_name;
-    $("settings-event-at").value = settings.event_at
-      ? V.localInput(settings.event_at)
-      : "";
-    const empty = node("option", "", "Tanpa musik");
-    empty.value = "";
-    $("settings-music").replaceChildren(empty);
-    rows
-      .filter(
-        (memory) =>
-          memory.media_kind === "audio" &&
-          (!memory.unlock_at || Date.parse(memory.unlock_at) <= V.now()),
-      )
-      .forEach((memory) => {
-        const option = node("option", "", memory.title);
-        option.value = memory.id;
-        $("settings-music").append(option);
-      });
-    $("settings-music").value = settings.music_memory_id || "";
-  }
-  function inboxCard(entry, isJournal) {
-    const article = node("article", "inbox-item");
-    article.append(
-      node(
-        "time",
-        "",
-        V.formatDate(
-          isJournal ? entry.journal_date : entry.created_at,
-          !isJournal,
-        ),
-      ),
-    );
-    article.append(
-      node(
-        "span",
-        "author-badge",
-        entry.author_id === state.user.id ? "Darimu" : "Dari pasanganmu",
-      ),
-    );
-    if (isJournal) article.append(node("h4", "", entry.question));
-    else if (entry.memory_id)
-      article.append(node("p", "context", "Balasan untuk sebuah kenangan"));
-    article.append(node("p", "", isJournal ? entry.answer : entry.body));
-    return article;
-  }
-  async function inboxPage(table, reset = false) {
-    requireMember();
-    const epoch = state.epoch;
-    const isJournal = table === "daily_journals";
-    const target = $(isJournal ? "admin-journals" : "admin-replies");
-    const moreButton = $(isJournal ? "more-journals" : "more-replies");
-    const offset = reset ? 0 : offsets[table];
-    const fields = isJournal
-      ? "id,author_id,journal_date,question,answer,created_at"
-      : "id,author_id,body,memory_id,created_at";
-    const rows = await unwrap(
-      db
-        .from(table)
-        .select(fields)
-        .order("created_at", { ascending: false })
-        .order("id")
-        .range(offset, offset + pageSize - 1),
-    );
-    if (!V.alive(epoch)) return;
-    if (reset) target.replaceChildren();
-    offsets[table] = offset + rows.length;
-    rows.forEach((entry) => target.append(inboxCard(entry, isJournal)));
-    if (!offsets[table])
-      target.append(
-        node(
-          "p",
-          "muted tiny",
-          isJournal ? "Belum ada jurnal harian." : "Belum ada pesan masuk.",
-        ),
-      );
-    moreButton.hidden = rows.length < pageSize;
-  }
-  async function loadInbox() {
-    if (inboxBusy) return;
-    const epoch = state.epoch;
-    inboxBusy = true;
-    message("inbox-message", "Memuat cerita pasanganmu…");
-    try {
-      const results = await Promise.allSettled([
-        inboxPage("replies", true),
-        inboxPage("daily_journals", true),
-      ]);
-      const failed = results.find((result) => result.status === "rejected");
-      if (failed) throw failed.reason;
-      if (V.alive(epoch)) message("inbox-message");
-    } catch (error) {
-      if (V.alive(epoch)) message("inbox-message", V.errorText(error), true);
-    } finally {
-      inboxBusy = false;
-    }
-  }
-
-  $("admin-login-form").addEventListener("submit", (event) => {
-    event.preventDefault();
-    const email = $("admin-email").value,
-      password = $("admin-password").value;
-    V.formAction(event.currentTarget, "admin-login-message", async () => {
-      await V.login(email, password);
-      message("admin-login-message");
-    });
-  });
-  $("admin-open").addEventListener("click", async () => {
-    try {
-      requireMember();
-      if (!$("admin-dialog").open) $("admin-dialog").showModal();
-      if (!$("memory-date").value)
-        $("memory-date").value = V.localInput().slice(0, 10);
-      if (state.role === "admin") await fillSettings();
-      if ($("inbox-details").open) await loadInbox();
-    } catch (error) {
-      V.toast(V.errorText(error));
-    }
-  });
-  $("memory-file").addEventListener("change", () => {
-    clearPreview();
-    message("upload-message");
-    const file = $("memory-file").files[0];
-    if (!file) return;
-    try {
-      const [, kind] = fileFormat(file);
-      previewURL = URL.createObjectURL(file);
-      const media = node(
-        kind === "image" ? "img" : kind === "video" ? "video" : "audio",
-      );
-      media.src = previewURL;
-      if (kind === "image") media.alt = "Pratinjau unggahan";
-      else {
-        media.controls = true;
-        media.preload = "metadata";
-        media.setAttribute("playsinline", "");
-      }
-      $("upload-preview").append(media);
-      $("upload-preview").hidden = false;
-    } catch (error) {
-      message("upload-message", V.errorText(error), true);
-      $("memory-file").value = "";
-    }
-  });
-  bindForm("upload-form", "upload-message", async (formData, form, epoch) => {
-    const file = formData.get("file");
-    const [extension, kind] = fileFormat(file);
-    const title = String(formData.get("title")).trim();
-    if (!title) throw new Error("Judul kenangan tidak boleh kosong.");
-    const unlockValue = formData.get("unlock");
-    const unlockAt = unlockValue ? new Date(unlockValue).toISOString() : null;
-    const id = crypto.randomUUID();
-    const path = `${state.user.id}/${id}.${extension}`;
-    const thumbnail =
-      kind === "image" && file.type !== "image/gif"
-        ? await makePreview(file).catch(() => null)
-        : null;
-    if (!V.alive(epoch)) return;
-    const previewPath = thumbnail
-      ? `${state.user.id}/${id}-preview.webp`
-      : null;
-    const uploadedPaths = [path];
-    const memory = {
-      id,
-      title,
-      caption: String(formData.get("caption")).trim(),
-      media_path: path,
-      preview_path: null,
-      media_kind: kind,
-      occurred_on: formData.get("date"),
-      unlock_at: unlockAt,
-    };
-    let uploaded = false;
-    $("upload-progress").hidden = false;
-    try {
-      message(
-        "upload-message",
-        "Mengunggah media… Jangan tutup halaman dahulu.",
-      );
-      await unwrap(
-        db.storage.from(cfg.BUCKET).upload(path, file, {
-          upsert: false,
-          contentType: file.type,
-          cacheControl: "0",
-        }),
-      );
-      uploaded = true;
-      if (!V.alive(epoch)) return;
-      if (thumbnail) {
-        const previewResult = await db.storage
-          .from(cfg.BUCKET)
-          .upload(previewPath, thumbnail, {
-            upsert: false,
-            contentType: "image/webp",
-            cacheControl: "0",
-          });
-        if (!V.alive(epoch)) return;
-        if (!previewResult.error) {
-          memory.preview_path = previewPath;
-          uploadedPaths.push(previewPath);
-        } else {
-          // Foto asli tetap dapat disimpan jika pembuatan/unggah pratinjau gagal.
-          await db.storage.from(cfg.BUCKET).remove([previewPath]);
-        }
-      }
-      message("upload-message", "Media terunggah. Menyimpan ceritanya…");
-      const { error: insertError } = await db
-        .from("memories")
-        .insert(memory)
-        .select("id")
-        .single();
-      if (insertError) {
-        // Timeout bisa terjadi SETELAH commit. Periksa ID yang sama sebelum cleanup.
-        const check = await db
-          .from("memories")
-          .select("id")
-          .eq("id", id)
-          .maybeSingle();
-        if (check.error)
-          throw new Error(
-            "Hasil penyimpanan belum dapat dipastikan. Muat ulang galeri sebelum mengunggah ulang. File masih disimpan di Storage.",
-          );
-        if (!check.data) {
-          const cleanup = await db.storage
-            .from(cfg.BUCKET)
-            .remove(uploadedPaths);
-          if (cleanup.error)
-            throw new Error(
-              "Cerita gagal tersimpan dan file belum dapat dibersihkan. Periksa Storage sebelum mencoba lagi.",
-            );
-          throw insertError;
-        }
-      }
-      if (!V.alive(epoch)) return;
-      form.reset();
-      clearPreview();
-      $("memory-date").value = V.localInput().slice(0, 10);
-      await refreshAfterSave(
-        "upload-message",
-        unlockAt && Date.parse(unlockAt) > V.now()
-          ? "Kapsul waktumu sudah disimpan. ♡"
-          : "Kenangan baru sudah tersimpan. ♡",
-      );
-      // Jangan menimpa pengaturan lain yang sedang diketik saat memperbarui opsi musik.
-      if (kind === "audio" && (!unlockAt || Date.parse(unlockAt) <= V.now())) {
-        const option = node("option", "", title);
-        option.value = id;
-        $("settings-music").append(option);
-      }
-    } catch (error) {
-      if (
-        !uploaded &&
-        /fetch|network|abort|timeout/i.test(error.message || "")
-      ) {
-        throw new Error(
-          "Koneksi terputus saat unggah. Periksa galeri dan Storage sebelum mencoba lagi; file mungkin sudah terunggah.",
-        );
-      }
-      throw error;
-    } finally {
-      $("upload-progress").hidden = true;
-    }
-  });
-  bindForm("bucket-form", "bucket-message", async (data, form, epoch) => {
-    const title = String(data.get("title")).trim();
-    if (!title) throw new Error("Tulis impianmu terlebih dahulu.");
-    await unwrap(
-      db.from("bucket_list").insert({ title }).select("id").single(),
-    );
-    if (!V.alive(epoch)) return;
-    form.reset();
-    message("bucket-message", "Impian baru sudah ditambahkan.");
-    await V.loadBuckets();
-  });
-  bindForm("letter-form", "letter-message", async (data, form, epoch) => {
-    const title = String(data.get("title")).trim(),
-      body = String(data.get("body")).trim();
-    if (!title || !body) throw new Error("Isi judul dan suratmu dahulu.");
-    await unwrap(
-      db.from("love_letters").insert({ title, body }).select("id").single(),
-    );
-    if (!V.alive(epoch)) return;
-    form.reset();
-    message("letter-message", "Suratmu sudah tersimpan di dalam amplop.");
-    await V.loadLetters();
-  });
-  bindForm("settings-form", "settings-message", async (data, form, epoch) => {
-    requireAdmin();
-    const names = String(data.get("names")).trim();
-    if (!names) throw new Error("Isi nama kalian dahulu.");
-    const eventName = String(data.get("event")).trim();
-    if (data.get("eventAt") && !eventName)
-      throw new Error("Beri nama untuk hari spesialmu.");
-    const settings = {
-      couple_names: names,
-      relationship_started_at: data.get("start")
-        ? new Date(data.get("start")).toISOString()
-        : null,
-      timezone: data.get("timezone"),
-      event_name: eventName,
-      event_at: data.get("eventAt")
-        ? new Date(data.get("eventAt")).toISOString()
-        : null,
-      music_memory_id: data.get("music") || null,
-    };
-    await unwrap(
-      db
-        .from("app_settings")
-        .update(settings)
-        .eq("id", 1)
-        .select("id")
-        .single(),
-    );
-    if (!V.alive(epoch)) return;
-    await refreshAfterSave(
-      "settings-message",
-      "Pengaturan cerita kita sudah diperbarui.",
-    );
-  });
-  $("inbox-details").addEventListener("toggle", () => {
-    if ($("inbox-details").open && state.user) loadInbox();
-  });
-  $("inbox-refresh").addEventListener("click", loadInbox);
-  for (const [id, table] of [
-    ["more-replies", "replies"],
-    ["more-journals", "daily_journals"],
-  ]) {
-    $(id).addEventListener("click", async () => {
-      $(id).disabled = true;
+    const resume = async () => {
       try {
-        await inboxPage(table);
+        let session;
+        if (navigator.onLine) {
+          const { data, error } = await db.auth.getSession();
+          if (error) throw error;
+          session = data.session;
+        } else {
+          session = JSON.parse(localStorage.getItem(cfg.SESSION_KEY) || "null");
+        }
+        if (session?.user && !state.user && !authenticating)
+          await enter(session);
       } catch (error) {
-        message("inbox-message", V.errorText(error), true);
-      } finally {
-        $(id).disabled = false;
+        message("login-message", errorText(error), true);
       }
-    });
+    };
+    // Tunggu fitur dan formulir terpasang sebelum memulihkan akun luring.
+    document.addEventListener("cmv:booted", resume, { once: true });
   }
-  $("admin-dialog").addEventListener("close", () => {
-    $("upload-preview")
-      .querySelectorAll("video,audio")
-      .forEach((media) => media.pause());
-  });
-  document.addEventListener("cmv:locked", () => {
-    clearPreview();
-    offsets.replies = 0;
-    offsets.daily_journals = 0;
-    inboxBusy = false;
-    const option = node("option", "", "Tanpa musik");
-    option.value = "";
-    $("settings-music").replaceChildren(option);
-  });
 })();

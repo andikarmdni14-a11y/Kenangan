@@ -1,6 +1,8 @@
 <!doctype html>
 <html lang="id">
   <head>
+    <base href="./" />
+    <meta name="cmv-build" content="v5.0" />
     <meta charset="utf-8" />
     <meta
       name="viewport"
@@ -12,31 +14,36 @@
       name="description"
       content="Ruang kecil untuk menyimpan cerita, impian, dan kenangan kita berdua."
     />
-    <meta name="referrer" content="no-referrer" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self'; img-src 'self' blob: data:; media-src 'self' blob:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https://tile.openstreetmap.org; media-src 'self' blob:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests"
     />
-    <title>Couple Memory Vault · Cerita Kita</title>
+    <title>Utama · Couple Memory Vault</title>
     <link rel="icon" type="image/png" href="./icons/icon-192.png" />
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
     <link rel="manifest" href="./manifest.json" />
     <link rel="stylesheet" href="./style.css" />
-    <!-- CDN resmi Supabase v2. Tidak membutuhkan npm, bundler, atau framework. -->
-    <script
-      defer
-      src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.99.2/dist/umd/supabase.js"
-      crossorigin="anonymous"
-    ></script>
+    <link rel="stylesheet" href="./vendor/leaflet.css" />
+    <script defer src="./vendor/supabase.js"></script>
+    <script defer src="./vendor/leaflet.js"></script>
     <script defer src="./supabase-config.js"></script>
-    <script defer src="./main.js"></script>
+    <script defer src="./offline.js"></script>
+    <script defer src="./router.js"></script>
   </head>
-  <body>
-    <a class="skip-link" href="#content">Langsung ke isi</a>
+  <body data-page="utama">
+    <div id="boot-status" class="banner" role="status">
+      <span id="boot-message">Menyiapkan halaman cerita kita…</span>
+      <button id="boot-retry" class="text-button" type="button" hidden>
+        Coba lagi
+      </button>
+    </div>
+    <a class="skip-link" href="#content" data-skip>Langsung ke isi</a>
     <div id="network-banner" class="banner" role="status" hidden>
-      Kamu sedang offline. Sambungkan internet untuk membuka kenangan.
+      Sedang luring · Arsip tersimpan tetap bisa dibaca. Draf akan dikirim saat
+      tersambung.
     </div>
     <div id="update-banner" class="banner" hidden>
       Versi baru siap.
@@ -79,7 +86,7 @@
       </div>
     </header>
 
-    <main id="content">
+    <main id="content" inert>
       <section
         id="lock-screen"
         class="lock-layout"
@@ -109,7 +116,11 @@
           <p class="eyebrow">PINTU MENUJU CERITA KITA</p>
           <h2>Selamat datang, kamu.</h2>
           <p>Masukkan kata sandi kenangan untuk membuka ruang kecil kita.</p>
-          <form id="viewer-login-form">
+          <p class="tiny muted">
+            Sesi dan arsip tersimpan di perangkat ini. Gunakan Kunci &amp;
+            keluar setelah memakai perangkat bersama.
+          </p>
+          <form id="viewer-login-form" novalidate>
             <label for="viewer-password">Kata Sandi Kenangan</label>
             <div class="password-field">
               <input
@@ -152,43 +163,13 @@
       </section>
 
       <div id="app-screen" class="app-shell" hidden>
-        <section class="hero paper" aria-labelledby="couple-names">
-          <div class="floating-hearts" aria-hidden="true">
-            <span>♡</span><span>♡</span><span>✧</span>
-          </div>
-          <div>
-            <p class="eyebrow">ALBUM YANG TERUS BERTUMBUH</p>
-            <h1 id="couple-names">Kita berdua</h1>
-            <p>Rumah untuk semua cerita kecil kita.</p>
-            <div class="hero-actions">
-              <button id="surprise-button" class="button" type="button">
-                ✧ Surprise Me</button
-              ><button
-                id="music-button"
-                class="button ghost"
-                type="button"
-                aria-pressed="false"
-              >
-                ♫ Putar musik
-              </button>
-            </div>
-            <p id="music-note" class="tiny muted"></p>
-          </div>
-          <div class="time-cards">
-            <div class="time-card">
-              <span class="eyebrow">SUDAH SEJAUH INI</span
-              ><strong id="relationship-days">—</strong
-              ><span id="relationship-detail"
-                >Tanggal jadian belum diatur.</span
-              >
-            </div>
-            <div class="time-card event-card">
-              <span id="event-name" class="eyebrow">HARI YANG DINANTI</span
-              ><strong id="event-countdown">Belum ada rencana</strong
-              ><span id="event-detail">Masih banyak hal indah menanti.</span>
-            </div>
-          </div>
-        </section>
+        <nav class="section-nav" aria-label="Halaman cerita kita">
+          <a data-route="utama" href="./">Utama</a>
+          <a data-route="kenangan" href="./kenangan/">Kenangan</a>
+          <a data-route="jurnal" href="./jurnal/">Jurnal</a>
+          <a data-route="impian" href="./impian/">Impian</a>
+          <a data-route="surat" href="./surat/">Surat</a>
+        </nav>
         <section class="music-player paper" aria-label="Pemutar musik bersama">
           <span class="music-cover" aria-hidden="true">♫</span>
           <div class="music-track-field">
@@ -244,188 +225,127 @@
             />
           </div>
         </section>
-        <nav class="section-nav" aria-label="Jelajahi cerita">
-          <a href="#memories-section">Kenangan</a
-          ><a href="#journal-section">Jurnal</a
-          ><a href="#dreams-section">Impian kita</a
-          ><a href="#letters-section">Surat cinta</a>
-        </nav>
         <p id="app-message" class="form-message" role="status"></p>
-        <section
-          id="memories-section"
-          class="gallery-section"
-          aria-labelledby="gallery-heading"
-        >
-          <div class="section-heading">
-            <div>
-              <p class="eyebrow">POTONGAN CERITA KITA</p>
-              <h2 id="gallery-heading">Rak kenangan</h2>
-            </div>
-            <div class="gallery-controls">
-              <button
-                id="refresh-button"
-                class="icon-button"
-                type="button"
-                title="Muat ulang kenangan"
-                aria-label="Muat ulang kenangan"
-              >
-                ↻
-              </button>
-              <div class="segmented" role="group" aria-label="Tampilan galeri">
-                <button id="masonry-button" type="button" aria-pressed="true">
-                  Masonry</button
-                ><button
-                  id="timeline-button"
-                  type="button"
-                  aria-pressed="false"
-                >
-                  Linimasa
-                </button>
-              </div>
-            </div>
-          </div>
-          <div id="gallery" class="gallery masonry" aria-live="polite"></div>
-          <p id="gallery-empty" class="empty-state">
-            Belum ada kenangan. Cerita pertama kita sedang menunggu.
-          </p>
-          <button
-            id="load-more"
-            class="button ghost center-button"
-            type="button"
-            hidden
-          >
-            Lihat kenangan lainnya
+        <div class="sync-strip">
+          <span id="sync-status" role="status"
+            >Arsip luring sedang disiapkan…</span
+          ><button id="sync-now" type="button" class="text-button">
+            Sinkronkan</button
+          ><button id="drafts-open" type="button" class="text-button">
+            Draf &amp; antrean
           </button>
-        </section>
+        </div>
+        <p
+          id="route-status"
+          class="sr-only"
+          role="status"
+          aria-live="polite"
+        ></p>
+        <div id="page-outlet">
+          <div id="route-view" class="route-view" data-page="utama">
+            <section class="hero paper" aria-labelledby="couple-names">
+  <div class="floating-hearts" aria-hidden="true">
+    <span>♡</span><span>♡</span><span>✧</span>
+  </div>
+  <div>
+    <p class="eyebrow">ALBUM YANG TERUS BERTUMBUH</p>
+    <h1 id="couple-names">Kita berdua</h1>
+    <p>Rumah untuk semua cerita kecil kita.</p>
+    <div class="hero-actions">
+      <button id="surprise-button" class="button" type="button">
+        ✧ Surprise Me</button
+      ><button
+        id="music-button"
+        class="button ghost"
+        type="button"
+        aria-pressed="false"
+      >
+        ♫ Putar musik
+      </button>
+    </div>
+    <p id="music-note" class="tiny muted"></p>
+  </div>
+  <div class="time-cards">
+    <div class="time-card">
+      <span class="eyebrow">SUDAH SEJAUH INI</span
+      ><strong id="relationship-days">—</strong
+      ><span id="relationship-detail">Tanggal jadian belum diatur.</span>
+    </div>
+    <section
+      class="time-card event-card mini-calendar"
+      aria-labelledby="calendar-heading"
+    >
+      <div class="calendar-header">
+        <span id="calendar-heading" class="eyebrow">KALENDER KITA</span
+        ><button id="calendar-add" class="text-button" type="button">
+          + Rencana
+        </button>
+      </div>
+      <div class="calendar-header">
+        <button
+          id="calendar-prev"
+          class="icon-button"
+          type="button"
+          aria-label="Bulan sebelumnya"
+        >
+          ‹</button
+        ><strong id="calendar-month" aria-live="polite"></strong
+        ><button
+          id="calendar-next"
+          class="icon-button"
+          type="button"
+          aria-label="Bulan berikutnya"
+        >
+          ›
+        </button>
+      </div>
+      <div class="calendar-weekdays" aria-hidden="true">
+        <span>Sen</span><span>Sel</span><span>Rab</span><span>Kam</span
+        ><span>Jum</span><span>Sab</span><span>Min</span>
+      </div>
+      <div
+        id="calendar-days"
+        class="calendar-days"
+        aria-label="Pilih tanggal"
+      ></div>
+      <p id="calendar-selected" class="tiny muted"></p>
+      <div id="calendar-agenda" class="calendar-agenda"></div>
+      <div class="legacy-event">
+        <span id="event-name" class="eyebrow">HARI YANG DINANTI</span
+        ><strong id="event-countdown">Belum ada rencana</strong
+        ><span id="event-detail">Masih banyak hal indah menanti.</span>
+      </div>
+    </section>
+  </div>
+</section>
+<div class="album-links" aria-label="Buka album kita">
+  <a class="paper album-link" data-route="kenangan" href="./kenangan/"
+    ><span aria-hidden="true">▧</span>
+    <h2>Rak kenangan</h2>
+    <p>Foto, video, dan tempat yang menyimpan cerita.</p>
+    <span class="tiny">Buka album →</span></a
+  >
+  <a class="paper album-link" data-route="jurnal" href="./jurnal/"
+    ><span aria-hidden="true">✎</span>
+    <h2>Jurnal harian</h2>
+    <p>Tulis hari ini. Simpan untuk dikenang nanti.</p>
+    <span class="tiny">Tulis cerita →</span></a
+  >
+  <a class="paper album-link" data-route="impian" href="./impian/"
+    ><span aria-hidden="true">✧</span>
+    <h2>Impian kita</h2>
+    <p>Langkah kecil menuju hal-hal yang kita nantikan.</p>
+    <span class="tiny">Lihat impian →</span></a
+  >
+  <a class="paper album-link" data-route="surat" href="./surat/"
+    ><span aria-hidden="true">♡</span>
+    <h2>Surat cinta</h2>
+    <p>Ada kata-kata yang hanya ditujukan untukmu.</p>
+    <span class="tiny">Buka surat →</span></a
+  >
+</div>
 
-        <div class="panels-grid">
-          <section
-            id="journal-section"
-            class="paper panel"
-            aria-labelledby="journal-heading"
-          >
-            <p class="eyebrow">SATU HARI, SATU CERITA</p>
-            <h2 id="journal-heading">Jurnal hari ini</h2>
-            <div id="viewer-journal" hidden>
-              <p id="daily-date" class="tiny muted"></p>
-              <p id="daily-question" class="prompt-question">
-                Memuat pertanyaan…
-              </p>
-              <form id="journal-form">
-                <label class="sr-only" for="journal-answer"
-                  >Jawabanmu hari ini</label
-                ><textarea
-                  id="journal-answer"
-                  name="answer"
-                  rows="4"
-                  maxlength="3000"
-                  required
-                  placeholder="Tidak harus sempurna. Ceritakan saja…"
-                ></textarea
-                ><button class="button small" type="submit">
-                  Simpan ceritaku
-                </button>
-                <p id="journal-message" class="form-message" role="status"></p>
-              </form>
-              <details class="journal-history">
-                <summary>Cerita kita yang tersimpan</summary>
-                <div id="journal-history"></div>
-              </details>
-            </div>
-            <p id="admin-journal-note" class="muted" hidden>
-              Cerita harian kita tersimpan bersama.
-            </p>
-          </section>
-          <section
-            id="dreams-section"
-            class="paper panel"
-            aria-labelledby="dreams-heading"
-          >
-            <div class="section-heading compact">
-              <div>
-                <p class="eyebrow">SUATU HARI NANTI</p>
-                <h2 id="dreams-heading">Impian kita</h2>
-              </div>
-              <span id="bucket-count" class="pill">0/0</span>
-            </div>
-            <ul id="bucket-list" class="bucket-list"></ul>
-            <p id="bucket-empty" class="empty-state small-empty">
-              Belum ada impian tertulis. Ketuk + Tambah untuk memulai.
-            </p>
-            <p class="tiny muted">
-              Satu centang, satu langkah yang kita rayakan.
-            </p>
-          </section>
-          <section
-            id="letters-section"
-            class="paper panel letter-panel"
-            aria-labelledby="letters-heading"
-          >
-            <p class="eyebrow">DARI HATI, UNTUK HATI</p>
-            <h2 id="letters-heading">Ada surat untukmu.</h2>
-            <button
-              id="envelope-button"
-              class="envelope-button"
-              type="button"
-              aria-label="Buka surat cinta"
-              disabled
-            >
-              <span class="envelope" aria-hidden="true"
-                ><span class="envelope-letter">Untuk kamu, ♡</span
-                ><span class="envelope-front"></span
-                ><span class="envelope-flap"></span
-                ><span class="envelope-seal">♡</span></span
-              >
-            </button>
-            <p id="letter-teaser" class="muted">
-              Surat pertama kita belum ditulis.
-            </p>
-            <label
-              id="letter-select-label"
-              for="letter-select"
-              class="tiny"
-              hidden
-              >Pilih surat</label
-            ><select id="letter-select" hidden></select>
-          </section>
-          <section
-            id="reply-panel"
-            class="paper panel"
-            aria-labelledby="reply-heading"
-            hidden
-          >
-            <p class="eyebrow">AKU INGIN KAMU TAHU</p>
-            <h2 id="reply-heading">Titip sebuah pesan</h2>
-            <p class="muted">
-              Sesuatu yang ingin kamu bilang, sesederhana “aku kangen”.
-            </p>
-            <p id="reply-context" class="pill" hidden></p>
-            <button
-              id="clear-reply-context"
-              class="text-button"
-              type="button"
-              hidden
-            >
-              Kirim tanpa mengaitkan kenangan
-            </button>
-            <form id="reply-form">
-              <label class="sr-only" for="reply-body"
-                >Pesan untuk pasanganmu</label
-              ><textarea
-                id="reply-body"
-                name="body"
-                rows="4"
-                maxlength="2000"
-                required
-                placeholder="Hari ini aku…"
-              ></textarea
-              ><button id="reply-submit" class="button small" type="submit">
-                Kirim pesan
-              </button>
-              <p id="reply-message" class="form-message" role="status"></p>
-              <p id="reply-cooldown" class="tiny muted" aria-live="polite"></p>
-            </form>
-          </section>
+          </div>
         </div>
         <footer class="site-footer">
           <span aria-hidden="true">♡</span> Beberapa hal layak disimpan
@@ -449,7 +369,7 @@
         </button>
         <p class="eyebrow">DI BALIK CERITA KITA</p>
         <h2 id="admin-login-heading">Masuk ke ruang kita</h2>
-        <form id="admin-login-form">
+        <form id="admin-login-form" novalidate>
           <label for="admin-email">Email akunmu</label
           ><input
             id="admin-email"
@@ -490,7 +410,7 @@
         <p id="member-role" class="muted tiny"></p>
         <details class="admin-section" open>
           <summary>01 · Simpan kenangan baru</summary>
-          <form id="upload-form">
+          <form id="upload-form" novalidate>
             <label for="memory-file">Foto, video, atau audio</label
             ><input
               id="memory-file"
@@ -538,6 +458,59 @@
               zona waktu perangkatmu. Pembuat kapsul dan Admin bisa melihat
               isinya kapan saja.
             </p>
+            <fieldset class="location-fields">
+              <legend>Lokasi kenangan (opsional)</legend>
+              <label for="memory-place">Nama tempat</label
+              ><input
+                id="memory-place"
+                maxlength="120"
+                placeholder="Misalnya: Taman Menteng"
+              />
+              <div class="form-grid">
+                <div>
+                  <label for="memory-lat">Lintang</label
+                  ><input
+                    id="memory-lat"
+                    type="number"
+                    step="any"
+                    min="-90"
+                    max="90"
+                    placeholder="-6.20"
+                  />
+                </div>
+                <div>
+                  <label for="memory-lng">Bujur</label
+                  ><input
+                    id="memory-lng"
+                    type="number"
+                    step="any"
+                    min="-180"
+                    max="180"
+                    placeholder="106.85"
+                  />
+                </div>
+              </div>
+              <div class="inline-actions">
+                <button
+                  type="button"
+                  id="location-pick"
+                  class="button small ghost"
+                >
+                  Pilih di peta</button
+                ><button
+                  type="button"
+                  id="location-current"
+                  class="text-button"
+                >
+                  Lokasi sekarang</button
+                ><button type="button" id="location-clear" class="text-button">
+                  Kosongkan
+                </button>
+              </div>
+              <p class="tiny muted">
+                Lokasi perangkat hanya diambil ketika tombolnya ditekan.
+              </p>
+            </fieldset>
             <button class="button" type="submit">Simpan kenangan</button
             ><progress
               id="upload-progress"
@@ -549,7 +522,7 @@
         </details>
         <details class="admin-section">
           <summary>02 · Tambah impian bersama</summary>
-          <form id="bucket-form">
+          <form id="bucket-form" novalidate>
             <label for="bucket-title">Apa yang ingin kita wujudkan?</label
             ><input
               id="bucket-title"
@@ -565,7 +538,7 @@
         </details>
         <details class="admin-section">
           <summary>03 · Tulis surat cinta</summary>
-          <form id="letter-form">
+          <form id="letter-form" novalidate>
             <label for="letter-title">Judul surat</label
             ><input
               id="letter-title"
@@ -582,9 +555,26 @@
               required
               placeholder="Hai, sayang…"
             ></textarea>
+            <div class="capsule-options">
+              <label class="check-label"
+                ><input id="letter-capsule" type="checkbox" /> Jadikan kapsul
+                waktu</label
+              >
+              <div id="letter-unlock-wrap" hidden>
+                <label for="letter-unlock">Buka pada tanggal &amp; jam</label
+                ><input
+                  id="letter-unlock"
+                  name="unlock"
+                  type="datetime-local"
+                />
+                <p class="tiny muted">
+                  Jam mengikuti perangkatmu. Setelah terkirim, isi terkunci
+                  untuk kalian berdua sampai waktunya tiba.
+                </p>
+              </div>
+            </div>
             <p class="tiny muted">
-              Surat langsung bisa dibuka pasangan setelah disimpan. Baris baru
-              akan dipertahankan.
+              Tulisan otomatis disimpan sebagai draf di perangkat ini.
             </p>
             <button class="button small" type="submit">
               Simpan surat cinta
@@ -599,7 +589,7 @@
           hidden
         >
           <summary>Pengaturan Admin · Nama, waktu, dan musik</summary>
-          <form id="settings-form">
+          <form id="settings-form" novalidate>
             <label for="settings-names">Nama kalian</label
             ><input
               id="settings-names"
@@ -687,6 +677,9 @@
           <button id="memory-reply" class="button small" type="button" hidden>
             Balas kenangan ini
           </button>
+          <button id="memory-location" class="button small ghost" type="button">
+            ⌖ Lokasi
+          </button>
           <a id="memory-download" class="button small ghost" download hidden
             >Unduh file asli</a
           >
@@ -710,12 +703,153 @@
         <p class="eyebrow">SURAT YANG KUSIMPAN UNTUKMU</p>
         <h2 id="letter-view-title"></h2>
         <p id="letter-view-date" class="tiny muted"></p>
+        <div id="letter-reactions"></div>
         <div id="letter-view-body" class="letter-body preserve-lines"></div>
         <p class="letter-signature">Dengan seluruh hatiku, ♡</p>
       </article>
     </dialog>
     <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
     <audio id="background-music" preload="none"></audio>
+    <dialog id="calendar-dialog" aria-labelledby="calendar-dialog-title">
+      <div class="dialog-content">
+        <button
+          class="dialog-close"
+          type="button"
+          data-close="calendar-dialog"
+          aria-label="Tutup kalender"
+        >
+          ×
+        </button>
+        <p class="eyebrow">WAKTU UNTUK KITA</p>
+        <h2 id="calendar-dialog-title">Rencana bersama</h2>
+        <form id="calendar-form" novalidate>
+          <label for="calendar-title">Nama rencana</label
+          ><input
+            id="calendar-title"
+            maxlength="120"
+            required
+            placeholder="Kencan kecil hari Sabtu"
+          />
+          <div class="form-grid">
+            <div>
+              <label for="calendar-date">Tanggal</label
+              ><input id="calendar-date" type="date" required />
+            </div>
+            <div>
+              <label for="calendar-time">Jam (opsional)</label
+              ><input id="calendar-time" type="time" />
+            </div>
+          </div>
+          <p id="calendar-timezone" class="tiny muted"></p>
+          <label for="calendar-note">Catatan</label
+          ><textarea
+            id="calendar-note"
+            maxlength="2000"
+            rows="3"
+            placeholder="Tempat bertemu, hal yang ingin dibawa…"
+          ></textarea>
+          <div class="inline-actions">
+            <button type="submit" class="button small">Simpan rencana</button
+            ><button
+              id="calendar-delete"
+              type="button"
+              class="text-button"
+              hidden
+            >
+              Hapus rencana
+            </button>
+          </div>
+          <p id="calendar-message" class="form-message" role="status"></p>
+        </form>
+      </div>
+    </dialog>
+    <dialog id="location-dialog" aria-labelledby="location-heading">
+      <div class="dialog-content">
+        <button
+          class="dialog-close"
+          type="button"
+          data-close="location-dialog"
+          aria-label="Tutup peta"
+        >
+          ×
+        </button>
+        <h2 id="location-heading">Di mana cerita ini terjadi?</h2>
+        <p class="tiny muted">
+          Ketuk peta untuk memilih titik. Kamu juga bisa mengisi koordinat
+          secara manual.
+        </p>
+        <div id="location-map" class="memory-map"></div>
+        <p id="location-preview" class="tiny muted" role="status"></p>
+        <form id="location-form" novalidate>
+          <label for="location-label">Nama tempat</label
+          ><input
+            id="location-label"
+            maxlength="120"
+            placeholder="Tempat favorit kita"
+          />
+          <div class="form-grid">
+            <div>
+              <label for="location-lat">Lintang</label
+              ><input
+                id="location-lat"
+                type="number"
+                step="any"
+                min="-90"
+                max="90"
+                required
+              />
+            </div>
+            <div>
+              <label for="location-lng">Bujur</label
+              ><input
+                id="location-lng"
+                type="number"
+                step="any"
+                min="-180"
+                max="180"
+                required
+              />
+            </div>
+          </div>
+          <button id="location-use" type="submit" class="button small">
+            Gunakan titik ini
+          </button>
+          <p id="location-message" class="form-message" role="status"></p>
+        </form>
+      </div>
+    </dialog>
+    <dialog id="drafts-dialog" aria-labelledby="drafts-heading">
+      <div class="dialog-content">
+        <button
+          class="dialog-close"
+          type="button"
+          data-close="drafts-dialog"
+          aria-label="Tutup draf"
+        >
+          ×
+        </button>
+        <h2 id="drafts-heading">Draf &amp; antrean kita</h2>
+        <p class="tiny muted">
+          Draf belum dibagikan. Antrean dikirim otomatis saat aplikasi terbuka
+          dan koneksi kembali. Jangan hapus data browser sebelum tersinkron.
+        </p>
+        <div id="drafts-list"></div>
+        <div id="queue-list"></div>
+      </div>
+    </dialog>
+    <dialog id="confirm-dialog" aria-labelledby="confirm-heading">
+      <div class="dialog-content">
+        <h2 id="confirm-heading">Sebentar, ya…</h2>
+        <p id="confirm-copy"></p>
+        <div class="inline-actions">
+          <button id="confirm-cancel" type="button" class="button ghost small">
+            Kembali</button
+          ><button id="confirm-ok" type="button" class="button small">
+            Lanjutkan
+          </button>
+        </div>
+      </div>
+    </dialog>
     <noscript
       ><p class="banner">
         Aktifkan JavaScript untuk membuka Couple Memory Vault.

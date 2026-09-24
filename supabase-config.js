@@ -43,6 +43,17 @@ window.VAULT_CONFIG = Object.freeze({
       throw new Error(
         "Supabase belum termuat. Periksa internet, lalu muat ulang halaman.",
       );
+    // Pertahankan sesi lama pada tab ini saat pembaruan pertama.
+    if (
+      !localStorage.getItem(c.SESSION_KEY) &&
+      sessionStorage.getItem(c.SESSION_KEY)
+    ) {
+      localStorage.setItem(
+        c.SESSION_KEY,
+        sessionStorage.getItem(c.SESSION_KEY),
+      );
+      sessionStorage.removeItem(c.SESSION_KEY);
+    }
     window.vaultClient = window.supabase.createClient(
       c.SUPABASE_URL,
       c.SUPABASE_PUBLISHABLE_KEY,
@@ -51,7 +62,7 @@ window.VAULT_CONFIG = Object.freeze({
           persistSession: true,
           autoRefreshToken: true,
           detectSessionInUrl: false,
-          storage: window.sessionStorage,
+          storage: window.localStorage,
           storageKey: c.SESSION_KEY,
         },
         global: {

@@ -1,39 +1,47 @@
-/* Cache HANYA kerangka publik. Tidak menyimpan sesi, API Supabase, atau media. */
-const CACHE_PREFIX = "cmv-shell-";
-const CACHE_NAME = `${CACHE_PREFIX}v3-shared`;
+/* Kerangka aplikasi tersedia luring. API, token, media privat, dan tile peta
+   tidak pernah masuk Cache Storage; arsip pribadi dikelola IndexedDB per akun. */
+// Keep independent deployments on the same origin from deleting each other's shell.
+const PREFIX = `cmv-shell-${encodeURIComponent(self.registration.scope)}-`;
+const CACHE = PREFIX + "v5-20260924-1";
 const SHELL = [
   "./",
   "./index.html",
+  "./kenangan/index.html",
+  "./jurnal/index.html",
+  "./impian/index.html",
+  "./surat/index.html",
+  "./router.js",
   "./style.css",
   "./supabase-config.js",
+  "./offline.js",
   "./main.js",
+  "./features.js",
+  "./admin.js",
   "./manifest.json",
+  "./vendor/supabase.js",
+  "./vendor/leaflet.js",
+  "./vendor/leaflet.css",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
   "./icons/maskable-512.png",
   "./icons/apple-touch-icon.png",
 ];
 const URLS = new Set(
-  SHELL.map((path) => new URL(path, self.registration.scope).href),
+  SHELL.map((p) => new URL(p, self.registration.scope).href),
 );
-
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(SHELL)));
-  // Versi baru menunggu persetujuan tombol muat ulang; tidak memutus form unggahan.
+  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(SHELL)));
+  // Tunggu tombol muat ulang agar draf/form yang aktif tidak terputus.
 });
-self.addEventListener("activate", (event) => {
+self.addEventListener("activate", (event) =>
   event.waitUntil(
     (async () => {
-      const keys = await caches.keys();
-      await Promise.all(
-        keys
-          .filter((key) => key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME)
-          .map((key) => caches.delete(key)),
-      );
+      for (const key of await caches.keys())
+        if (key.startsWith(PREFIX) && key !== CACHE) await caches.delete(key);
       await self.clients.claim();
     })(),
-  );
-});
+  ),
+);
 self.addEventListener("message", (event) => {
   if (event.data?.type === "ACTIVATE_UPDATE") self.skipWaiting();
 });
@@ -41,37 +49,59 @@ self.addEventListener("fetch", (event) => {
   const request = event.request;
   if (request.method !== "GET") return;
   const url = new URL(request.url);
-  if (url.origin !== self.location.origin || url.search || !URLS.has(url.href))
-    return;
-  // Allowlist ini tidak pernah mencakup endpoint /auth, /rest, /storage atau blob:.
+  url.search = "";
+  url.hash = "";
+  // Directory URLs work offline as well as each physical index.html entry point.
+  for (const page of ["kenangan", "jurnal", "impian", "surat"]) {
+    const path = new URL(`./${page}/`, self.registration.scope).pathname;
+    if (
+      url.origin === self.location.origin &&
+      url.pathname === path.slice(0, -1)
+    ) {
+      const canonical = new URL(request.url);
+      canonical.pathname = path;
+      event.respondWith(
+        Promise.resolve(Response.redirect(canonical.href, 308)),
+      );
+      return;
+    }
+    if (url.pathname === path) url.pathname = path + "index.html";
+  }
+  if (url.origin !== self.location.origin || !URLS.has(url.href)) return;
   event.respondWith(
     (async () => {
-      const cache = await caches.open(CACHE_NAME);
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 5000);
+      const cache = await caches.open(CACHE),
+        cached = await cache.match(url.href);
+      if (cached) return cached;
       try {
-        const response = await fetch(request, {
-          signal: controller.signal,
-          cache: "no-cache",
-        });
-        if (response.ok && response.type === "basic") {
-          await cache.put(request, response.clone());
-          return response;
-        }
-        const cached = await cache.match(request);
-        return cached || response;
+        const response = await fetch(request);
+        if (response.ok && response.type === "basic")
+          await cache.put(url.href, response.clone());
+        return response;
       } catch {
-        const cached = await cache.match(request);
-        return (
-          cached ||
-          new Response("Sambungkan internet untuk membuka halaman ini.", {
+        return new Response(
+          "Buka aplikasi sekali saat online untuk menyiapkan mode luring.",
+          {
             status: 503,
             headers: { "Content-Type": "text/plain; charset=utf-8" },
-          })
+          },
         );
-      } finally {
-        clearTimeout(timeout);
       }
     })(),
   );
+});
+self.addEventListener("sync", (event) => {
+  if (event.tag === "cmv-outbox")
+    event.waitUntil(
+      (async () => {
+        // Kredensial tetap di halaman aplikasi. Browser tanpa Background Sync memakai
+        // event online/focus dan pembukaan aplikasi. Tidak menjanjikan kirim saat tertutup.
+        const clients = await self.clients.matchAll({
+          type: "window",
+          includeUncontrolled: true,
+        });
+        for (const client of clients)
+          client.postMessage({ type: "SYNC_OUTBOX" });
+      })(),
+    );
 });
