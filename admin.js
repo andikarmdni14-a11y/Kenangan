@@ -260,10 +260,15 @@
         kind === "image" ? "img" : kind === "video" ? "video" : "audio",
       );
       media.src = previewURL;
-      if (kind === "image") media.alt = "Pratinjau unggahan";
+      if (kind === "image") {
+        media.alt = "Pratinjau unggahan";
+        media.loading = "lazy";
+        media.decoding = "async";
+      }
       else {
         media.controls = true;
-        media.preload = "metadata";
+        media.preload = "none";
+        media.setAttribute("aria-label", "Pratinjau unggahan");
         media.setAttribute("playsinline", "");
       }
       $("upload-preview").append(media);

@@ -16,6 +16,7 @@
     letters: [],
     more: false,
     galleryOffset: 0,
+    galleryPage: 0,
     musicTracks: [],
     musicTrackId: null,
     view: "masonry",
@@ -28,6 +29,9 @@
     receivedAt: performance.now(),
   };
   const objectURLs = new Map();
+  const pendingBuckets = new Map();
+  const GALLERY_PAGE_SIZE = Math.min(24, Math.max(1, Math.floor(Number(cfg.PAGE_SIZE) || 24)));
+  let galleryGeneration = 0, photoFrame = 0;
   let toastTimer,
     envelopeTimer,
     refreshing = false,
@@ -59,13 +63,20 @@
     $(id).textContent = text;
     $(id).classList.toggle("error", error);
   }
-  function toast(text) {
+  function toast(text, duration = 3000) {
     clearTimeout(toastTimer);
-    $("toast").textContent = text;
-    $("toast").hidden = false;
+    const popup = $("toast"), announcement = $("toast-announcement");
+    // Keep feedback inside the active modal's top layer and accessibility tree.
+    const host = [...document.querySelectorAll("dialog[open]")].at(-1) || document.body;
+    host.append(popup, announcement);
+    popup.textContent = text;
+    popup.hidden = false;
+    announcement.textContent = "";
+    requestAnimationFrame(() => { announcement.textContent = text; });
     toastTimer = setTimeout(() => {
-      $("toast").hidden = true;
-    }, 4500);
+      popup.hidden = true;
+      announcement.textContent = "";
+    }, duration);
   }
   function errorText(error) {
     const raw = String(error?.message || error || "Terjadi kesalahan.");
@@ -318,6 +329,10 @@
     state.settings = null;
     state.memories = [];
     state.galleryOffset = 0;
+    state.galleryPage = 0;
+    state.more = false;
+    galleryGeneration++;
+    pendingBuckets.clear();
     state.letters = [];
     state.musicTracks = [];
     state.musicTrackId = null;
@@ -374,6 +389,8 @@
     $("lock-screen").hidden = false;
     $("admin-open").hidden = true;
     $("lock-button").hidden = true;
+    $("sync-indicator").hidden = true;
+    $("toast-announcement").textContent = "";
     $("toast").hidden = true;
     $("envelope-button").classList.remove("is-open");
     const clearedText = {
@@ -475,6 +492,7 @@
         ? "Admin · Kita sama-sama bisa menambah cerita."
         : "Pasangan · Ruang ini juga milikmu.";
     $("lock-button").hidden = false;
+    $("sync-indicator").hidden = false;
     $("viewer-journal").hidden = false;
     $("reply-panel").hidden = false;
     $("admin-journal-note").hidden = true;
@@ -511,7 +529,7 @@
       await loadSettings();
       await window.VaultFeatures?.load();
       const tasks = [
-        loadGallery(true),
+        loadGallery(),
         loadBuckets(),
         loadLetters(),
         loadDaily(),
@@ -546,7 +564,8 @@
       const blob = await local.media(path, () =>
         unwrap(db.storage.from(cfg.BUCKET).download(path)),
       );
-      if (!alive(epoch)) throw new Error("Sesi sudah dikunci.");
+      if (!alive(epoch) || objectURLs.get(path) !== cached)
+        throw new Error("Media tidak lagi diperlukan.");
       cached.url = URL.createObjectURL(blob);
       return cached.url;
     })().catch((error) => {
@@ -556,41 +575,56 @@
     objectURLs.set(path, cached);
     return cached.promise;
   }
+  function pruneMediaURLs() {
+    const used = new Set(state.memories.filter((m) => !m.is_locked && m.media_kind === "image")
+      .map((m) => m.preview_path || m.media_path));
+    if (currentMemory) used.add(currentMemory.media_path);
+    const track = state.musicTracks.find((t) => t.id === state.musicTrackId);
+    if (track) used.add(track.media_path);
+    for (const [path, cached] of objectURLs) {
+      if (used.has(path)) continue;
+      if (cached.url) URL.revokeObjectURL(cached.url);
+      objectURLs.delete(path);
+    }
+  }
   function queuePhoto(visual, memory) {
-    downloadQueue.push({ visual, memory, epoch: state.epoch });
+    if (!visual.isConnected || visual.dataset.queued || visual.classList.contains("has-photo")) return;
+    visual.dataset.queued = "true";
+    downloadQueue.push({ visual, memory, epoch: state.epoch, generation: galleryGeneration });
     pumpPhotos();
   }
   function pumpPhotos() {
     while (activeDownloads < 3 && downloadQueue.length) {
       const task = downloadQueue.shift();
-      if (!alive(task.epoch)) continue;
+      if (!alive(task.epoch) || task.generation !== galleryGeneration) continue;
+      if (!task.visual.isConnected) {
+        delete task.visual.dataset.queued;
+        observer?.observe(task.visual);
+        continue;
+      }
       activeDownloads++;
       mediaURL(task.memory.preview_path || task.memory.media_path)
         .then((url) => {
-          if (!alive(task.epoch)) return;
+          if (!alive(task.epoch) || task.generation !== galleryGeneration) return;
           const img = node("img");
-          img.src = url;
           img.alt = task.memory.title;
+          img.loading = "lazy";
           img.decoding = "async";
+          img.fetchPriority = "low";
           img.addEventListener("error", () => {
             img.remove();
-            task.visual.append(
-              node(
-                "span",
-                "loading-placeholder",
-                "Pratinjau tidak tersedia. Ketuk untuk membuka.",
-              ),
-            );
+            task.visual.classList.remove("has-photo");
+            task.visual.append(node("span", "loading-placeholder", "Pratinjau tidak tersedia. Ketuk untuk membuka."));
           });
+          img.src = url;
           task.visual.querySelector(".loading-placeholder")?.remove();
           task.visual.classList.add("has-photo");
           task.visual.prepend(img);
         })
         .catch(() => {
-          if (alive(task.epoch)) {
+          if (alive(task.epoch) && task.generation === galleryGeneration) {
             const label = task.visual.querySelector(".loading-placeholder");
-            if (label)
-              label.textContent = "Belum termuat. Ketuk untuk mencoba lagi.";
+            if (label) label.textContent = "Belum termuat. Ketuk untuk mencoba lagi.";
           }
         })
         .finally(() => {
@@ -598,6 +632,32 @@
           pumpPhotos();
         });
     }
+  }
+  function observeGalleryPhotos() {
+    if (!observer && "IntersectionObserver" in window)
+      observer = new IntersectionObserver((entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting && entry.target.isConnected) {
+            observer.unobserve(entry.target);
+            queuePhoto(entry.target, entry.target._memory);
+          }
+        }
+      }, { rootMargin: "160px 0px" });
+    $("gallery").querySelectorAll(".memory-visual").forEach((visual) => {
+      if (!visual._memory || visual.dataset.queued || visual.classList.contains("has-photo")) return;
+      if (observer) observer.observe(visual);
+      else if (visual.isConnected) {
+        const box = visual.getBoundingClientRect();
+        if (box.bottom >= -160 && box.top <= innerHeight + 160) queuePhoto(visual, visual._memory);
+      }
+    });
+  }
+  function schedulePhotoCheck() {
+    if (observer || photoFrame) return;
+    photoFrame = requestAnimationFrame(() => {
+      photoFrame = 0;
+      observeGalleryPhotos();
+    });
   }
   function memoryCard(memory) {
     const card = node(
@@ -646,66 +706,66 @@
     button.addEventListener("click", () => openMemory(memory));
     return card;
   }
-  async function loadGallery(reset = false) {
+  async function loadGallery(reset = false, options = {}) {
     if (galleryBusy || !state.user) return;
     galleryBusy = true;
     const epoch = state.epoch;
-    $("load-more").disabled = true;
-    $("gallery").setAttribute("aria-busy", "true");
+    let page = reset ? 0 : Math.max(0, options.page ?? state.galleryPage);
+    const gallery = $("gallery");
+    const next = $("load-more"), previous = $("gallery-previous");
+    next.disabled = previous.disabled = true;
+    gallery.setAttribute("aria-busy", "true");
     $("gallery-status").textContent = "Membuka halaman kenangan…";
     try {
-      const offset = reset ? 0 : state.galleryOffset;
-      const rows = await local.cached(`gallery:${offset}`, () =>
-        unwrap(
-          db.rpc("list_memories", { p_offset: offset, p_limit: cfg.PAGE_SIZE }),
-        ),
-      );
-      if (!alive(epoch)) return;
-      if (reset) {
-        state.memories = [];
-        $("gallery").replaceChildren();
+      let rows, reachedEnd = false;
+      // If deletions empty the last page, walk back to the nearest available page.
+      do {
+        const offset = page * GALLERY_PAGE_SIZE;
+        rows = await local.cached(`gallery:${offset}`, () => unwrap(
+          db.rpc("list_memories", { p_offset: offset, p_limit: GALLERY_PAGE_SIZE }),
+        ));
+        if (!alive(epoch)) return;
+        if (!rows.length && page > 0) { reachedEnd = true; page--; }
+        else break;
+      } while (true);
+      rows = rows.slice(0, GALLERY_PAGE_SIZE);
+      const changed = page !== state.galleryPage || JSON.stringify(rows) !== JSON.stringify(state.memories);
+      state.galleryPage = page;
+      state.galleryOffset = page * GALLERY_PAGE_SIZE + rows.length;
+      state.more = !reachedEnd && rows.length === GALLERY_PAGE_SIZE;
+      if (changed || reset || !gallery.children.length) {
+        const focusedId = gallery.contains(document.activeElement)
+          ? document.activeElement.closest("[data-memory-id]")?.dataset.memoryId : null;
+        galleryGeneration++;
         observer?.disconnect();
+        downloadQueue = [];
+        state.memories = rows;
+        gallery.replaceChildren(...rows.map(memoryCard));
+        pruneMediaURLs();
+        if (focusedId && !options.focus)
+          gallery.querySelector(`[data-memory-id="${CSS.escape(focusedId)}"] .memory-open`)?.focus({ preventScroll: true });
       }
-      const known = new Set(state.memories.map((m) => m.id));
-      const fresh = rows.filter((m) => !known.has(m.id));
-      state.memories.push(...fresh);
-      state.galleryOffset = offset + rows.length;
-      fresh.forEach((memory) => $("gallery").append(memoryCard(memory)));
-      state.more = rows.length === cfg.PAGE_SIZE;
-      $("load-more").hidden = !state.more;
-      window.VaultFeatures?.renderMap();
-      $("gallery-empty").hidden = state.memories.length > 0;
-      $("gallery-status").textContent = state.memories.length
-        ? `${state.memories.length} kenangan ditampilkan${state.more ? " · muat berikutnya saat kamu siap." : " · semua sudah ditampilkan."}`
-        : "";
-      if (!observer && "IntersectionObserver" in window)
-        observer = new IntersectionObserver(
-          (entries) => {
-            entries.forEach((entry) => {
-              if (entry.isIntersecting) {
-                observer.unobserve(entry.target);
-                queuePhoto(entry.target, entry.target._memory);
-              }
-            });
-          },
-          { rootMargin: "180px" },
-        );
-      $("gallery")
-        .querySelectorAll(".memory-visual")
-        .forEach((visual) => {
-          if (!visual._memory || visual.dataset.observed) return;
-          visual.dataset.observed = "true";
-          if (observer) observer.observe(visual);
-          else queuePhoto(visual, visual._memory);
-        });
+      $("gallery-empty").hidden = rows.length > 0;
+      $("gallery-page").textContent = `Halaman ${page + 1}`;
+      $("gallery-status").textContent = rows.length
+        ? `Kenangan ${page * GALLERY_PAGE_SIZE + 1}–${state.galleryOffset}${state.more ? "" : " · halaman terakhir"}.`
+        : "Belum ada kenangan tersimpan.";
+      if (options.focus && gallery.isConnected) {
+        const heading = $("gallery-heading");
+        heading.tabIndex = -1;
+        heading.focus({ preventScroll: true });
+        heading.scrollIntoView({ block: "start", behavior: "instant" });
+      }
+      observeGalleryPhotos();
     } catch (error) {
       if (alive(epoch)) $("gallery-status").textContent = errorText(error);
       throw error;
     } finally {
       if (alive(epoch)) {
         galleryBusy = false;
-        $("load-more").disabled = false;
-        $("gallery").removeAttribute("aria-busy");
+        next.disabled = !state.more;
+        previous.disabled = state.galleryPage === 0;
+        gallery.removeAttribute("aria-busy");
       }
     }
   }
@@ -722,6 +782,7 @@
     );
     try {
       localStorage.setItem("cmv-gallery-view", view);
+      observeGalleryPhotos();
     } catch {
       /* Pilihan tampilan tidak wajib tersimpan. */
     }
@@ -761,10 +822,15 @@
             ? "video"
             : "audio",
       );
-      if (memory.media_kind === "image") media.alt = memory.title;
+      if (memory.media_kind === "image") {
+        media.alt = memory.title;
+        media.loading = "lazy";
+        media.decoding = "async";
+      }
       else {
         media.controls = true;
-        media.preload = "metadata";
+        media.setAttribute("aria-label", `Putar ${memory.media_kind === "video" ? "video" : "audio"}: ${memory.title}`);
+        media.preload = "none";
         media.setAttribute("playsinline", "");
       }
       media.src = url;
@@ -793,51 +859,54 @@
     const epoch = state.epoch;
     const rows = await readAll("bucket_list", "*");
     if (!alive(epoch)) return;
+    const focusedId = $("bucket-list").contains(document.activeElement) ? document.activeElement.id : null;
     $("bucket-list").replaceChildren();
     $("bucket-empty").hidden = rows.length > 0;
-    $("bucket-count").textContent =
-      `${rows.filter((row) => row.is_completed).length}/${rows.length}`;
+    $("bucket-count").textContent = `${rows.filter((row) => row.is_completed).length}/${rows.length}`;
     rows.forEach((item) => {
-      const li = node("li");
-      const label = node("label");
-      const input = node("input");
+      const li = node("li"), label = node("label"), input = node("input");
       input.type = "checkbox";
-      input.disabled = !navigator.onLine;
-      input.checked = item.is_completed;
+      input.id = `bucket-${item.id}`;
+      input.name = "completed";
+      input.setAttribute("aria-describedby", "bucket-help");
+      input.setAttribute("aria-disabled", String(!navigator.onLine || pendingBuckets.has(item.id)));
+      input.checked = pendingBuckets.get(item.id) ?? item.is_completed;
+      label.htmlFor = input.id;
       label.append(input, node("span", "", item.title));
       li.append(label);
-      if (item.completed_at)
-        li.append(
-          node("small", "", `Terwujud ${formatDate(item.completed_at)}`),
-        );
+      if (item.completed_at) li.append(node("small", "", `Terwujud ${formatDate(item.completed_at)}`));
+      input.addEventListener("click", (event) => {
+        if (!navigator.onLine || pendingBuckets.has(item.id)) {
+          event.preventDefault();
+          if (!navigator.onLine) toast("Sambungkan internet untuk menandai impian. Kamu tetap bisa membacanya.");
+        }
+      });
       input.addEventListener("change", async () => {
         const requested = input.checked;
-        input.disabled = true;
+        pendingBuckets.set(item.id, requested);
+        input.setAttribute("aria-disabled", "true");
         try {
-          await unwrap(
-            db.rpc("set_bucket_completed", {
-              p_id: item.id,
-              p_completed: requested,
-            }),
-          );
+          await unwrap(db.rpc("set_bucket_completed", { p_id: item.id, p_completed: requested }));
           if (!alive(epoch)) return;
+          pendingBuckets.delete(item.id);
           await loadBuckets();
-          toast(
-            requested
-              ? "Satu mimpi lagi jadi nyata. ♡"
-              : "Impian ini kembali kita nantikan.",
-          );
+          toast(requested ? "Satu mimpi lagi jadi nyata. ♡" : "Impian ini kembali kita nantikan.");
         } catch (error) {
           if (alive(epoch)) {
-            input.checked = item.is_completed;
+            const current = $(input.id);
+            if (current) current.checked = item.is_completed;
             toast(errorText(error));
           }
         } finally {
-          input.disabled = false;
+          if (alive(epoch)) {
+            pendingBuckets.delete(item.id);
+            $(input.id)?.setAttribute("aria-disabled", String(!navigator.onLine));
+          }
         }
       });
       $("bucket-list").append(li);
     });
+    if (focusedId) $(focusedId)?.focus({ preventScroll: true });
   }
   async function loadLetters() {
     const epoch = state.epoch;
@@ -1086,7 +1155,7 @@
     $("music-track").value = state.musicTrackId || "";
     $("music-note").textContent = tracks.length
       ? "Pilih lagu, lalu tekan putar. Musik menemani dengan pelan."
-      : "Unggah audio lewat + Tambah untuk mengisi daftar lagu kita.";
+      : "Ketuk tombol + di kanan bawah untuk menambahkan lagu kita.";
     syncMusicUI();
   }
   async function playMusic() {
@@ -1174,9 +1243,13 @@
         },
       );
       const readyToUpdate = () => {
+        const previousWorker = waitingWorker;
         waitingWorker = registration.waiting;
-        if (waitingWorker && navigator.serviceWorker.controller)
+        if (waitingWorker && navigator.serviceWorker.controller) {
           $("update-banner").hidden = false;
+          if (state.user && previousWorker !== waitingWorker)
+            toast("Versi baru siap. Buka ikon awan untuk memperbarui setelah menyimpan tulisanmu.");
+        }
       };
       readyToUpdate();
       registration.addEventListener("updatefound", () => {
@@ -1238,6 +1311,7 @@
       `[data-memory-id="${CSS.escape(currentMemory?.id || "")}"] .memory-open`,
     );
     currentMemory = null;
+    pruneMediaURLs();
     if (state.user)
       (memoryOpener?.isConnected
         ? memoryOpener
@@ -1286,8 +1360,14 @@
   $("lock-button").addEventListener("click", lock);
   $("refresh-button").addEventListener("click", refresh);
   $("load-more").addEventListener("click", () =>
-    loadGallery().catch((error) => toast(errorText(error))),
+    loadGallery(false, { page: state.galleryPage + 1, focus: true }).catch((error) => toast(errorText(error))),
   );
+  $("gallery-previous").addEventListener("click", () =>
+    loadGallery(false, { page: state.galleryPage - 1, focus: true }).catch((error) => toast(errorText(error))),
+  );
+  document.addEventListener("cmv:page", observeGalleryPhotos);
+  window.addEventListener("scroll", schedulePhotoCheck, { passive: true });
+  window.addEventListener("resize", schedulePhotoCheck, { passive: true });
   $("masonry-button").addEventListener("click", () => setView("masonry"));
   $("timeline-button").addEventListener("click", () => setView("timeline"));
   $("surprise-button").addEventListener("click", async () => {
@@ -1410,13 +1490,12 @@
     waitingWorker?.postMessage({ type: "ACTIVATE_UPDATE" });
   });
   window.addEventListener("offline", () => {
-    $("network-banner").hidden = false;
     window.VaultFeatures?.status();
-    if (state.user)
-      toast("Kamu bisa lanjut menulis. Arsip tersimpan tetap tersedia.");
+    $("bucket-list").querySelectorAll("input").forEach((input) => input.setAttribute("aria-disabled", "true"));
   });
   window.addEventListener("online", () => {
-    $("network-banner").hidden = true;
+    window.VaultFeatures?.status();
+    $("bucket-list").querySelectorAll("input").forEach((input) => input.setAttribute("aria-disabled", "false"));
     if (state.user) window.VaultFeatures?.sync().then(refresh);
     else message("login-message", "Koneksi kembali. Silakan masuk.");
   });
@@ -1449,7 +1528,14 @@
   } catch {
     /* Opsional. */
   }
-  $("network-banner").hidden = navigator.onLine;
+  $("sync-indicator").addEventListener("click", () => {
+    $("sync-dialog").showModal();
+    window.VaultFeatures?.status();
+  });
+  navigator.serviceWorker?.addEventListener("message", (event) => {
+    if (event.data?.type === "SHELL_READY" && state.user)
+      toast("Aplikasi siap dibuka luring. Kenangan yang sudah dimuat dapat dibaca kembali.");
+  });
   setupPWA();
   if (!db) message("login-message", window.vaultConfigError, true);
   else {

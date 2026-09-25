@@ -2,7 +2,7 @@
    tidak pernah masuk Cache Storage; arsip pribadi dikelola IndexedDB per akun. */
 // Keep independent deployments on the same origin from deleting each other's shell.
 const PREFIX = `cmv-shell-${encodeURIComponent(self.registration.scope)}-`;
-const CACHE = PREFIX + "v5-20260924-1";
+const CACHE = PREFIX + "v5.1-20260925-1";
 const SHELL = [
   "./",
   "./index.html",
@@ -39,6 +39,8 @@ self.addEventListener("activate", (event) =>
       for (const key of await caches.keys())
         if (key.startsWith(PREFIX) && key !== CACHE) await caches.delete(key);
       await self.clients.claim();
+      const clients = await self.clients.matchAll({ type: "window" });
+      for (const client of clients) client.postMessage({ type: "SHELL_READY" });
     })(),
   ),
 );

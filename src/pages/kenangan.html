@@ -1,0 +1,62 @@
+<section
+  id="memories-section"
+  class="gallery-section"
+  aria-labelledby="gallery-heading"
+>
+  <div class="section-heading">
+    <div>
+      <p class="eyebrow">POTONGAN CERITA KITA</p>
+      <h2 id="gallery-heading">Rak kenangan</h2>
+    </div>
+    <div class="gallery-controls">
+      <button
+        id="refresh-button"
+        class="icon-button"
+        type="button"
+        title="Muat ulang kenangan"
+        aria-label="Muat ulang kenangan"
+      >
+        ↻
+      </button>
+      <div class="segmented" role="group" aria-label="Tampilan galeri">
+        <button id="masonry-button" type="button" aria-pressed="true">
+          Masonry</button
+        ><button id="timeline-button" type="button" aria-pressed="false">
+          Linimasa
+        </button>
+      </div>
+    </div>
+  </div>
+  <details id="map-details" class="paper map-panel">
+    <summary>
+      ⌖ Peta kenangan
+      <span class="tiny muted">— tempat cerita kita bermula</span>
+    </summary>
+    <p id="map-status" class="tiny muted" role="status">
+      Pin menampilkan kenangan terbuka yang sudah diberi lokasi.
+    </p>
+    <div
+      id="memory-map"
+      class="memory-map"
+      aria-label="Peta lokasi kenangan"
+    ></div>
+    <div id="map-list" class="map-list"></div>
+  </details>
+  <div id="gallery" class="gallery masonry" aria-label="Daftar kenangan"></div>
+  <p
+    id="gallery-status"
+    class="tiny muted"
+    role="status"
+    aria-live="polite"
+  ></p>
+  <p id="gallery-empty" class="empty-state">
+    Belum ada kenangan. Cerita pertama kita sedang menunggu.
+  </p>
+  <nav class="gallery-pagination" aria-label="Halaman kenangan">
+    <button id="gallery-previous" class="button small ghost" type="button"
+      aria-controls="gallery" disabled>Sebelumnya</button>
+    <span id="gallery-page" class="tiny muted" aria-live="polite">Halaman 1</span>
+    <button id="load-more" class="button small ghost" type="button"
+      aria-controls="gallery" disabled>Berikutnya</button>
+  </nav>
+</section>

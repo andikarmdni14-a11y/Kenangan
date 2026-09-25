@@ -10,6 +10,7 @@
     loading = false,
     lastError = "",
     storageError = false;
+  let lastStatusKey = null, previousStatus = null;
   let selected = "",
     month = "",
     editEvent = null,
@@ -65,21 +66,45 @@
     }
     if (!V.alive(epoch)) return;
     const failed = jobs.filter((j) => j.error).length;
-    $("sync-status").textContent = storageError
+    const kind = storageError ? "error"
+      : failed ? "error"
+      : !navigator.onLine ? "offline"
+      : syncing && jobs.length ? "syncing"
+      : jobs.length ? "pending"
+      : lastError ? "error" : "online";
+    const detail = storageError
       ? "Penyimpanan perangkat belum tersedia. Jangan tutup tulisanmu."
-      : syncing
-        ? "Mengirim cerita yang menunggu…"
-        : failed
-          ? `${failed} perubahan perlu ditinjau · buka Draf & antrean.`
-          : jobs.length
-            ? `${jobs.length} perubahan menunggu pengiriman · tersimpan di perangkat.`
-            : lastError
-              ? lastError
-              : navigator.onLine
-                ? "Tersambung · arsip yang dimuat tersedia luring."
-                : "Luring · baca arsip atau lanjutkan drafmu.";
+      : failed
+        ? `${failed} perubahan perlu ditinjau. Buka Draf & antrean.`
+        : !navigator.onLine
+          ? `Kamu sedang luring. Baca kenangan tersimpan atau lanjutkan drafmu.${jobs.length ? ` ${jobs.length} perubahan menunggu koneksi.` : ""}`
+          : syncing && jobs.length
+            ? `Mengirim ${jobs.length} perubahan…`
+            : jobs.length
+              ? `${jobs.length} perubahan menunggu pengiriman dan tersimpan di perangkat.`
+              : lastError || "Tersambung. Tidak ada perubahan yang menunggu pengiriman.";
+    const names = { online: "Tersambung", offline: "Luring", syncing: "Menyinkronkan", pending: "Perubahan menunggu", error: "Perlu diperiksa" };
+    const indicator = $("sync-indicator");
+    indicator.dataset.status = kind;
+    indicator.setAttribute("aria-label", `${names[kind]}. Buka status sinkronisasi dan draf.`);
+    indicator.title = `${names[kind]} · status dan draf`;
+    $("sync-status").textContent = detail;
+    $("sync-status").classList.toggle("error", kind === "error");
     $("sync-now").disabled = syncing || !navigator.onLine;
-    $("sync-status").classList.toggle("error", !!failed || storageError);
+    // Empty queue checks (focus/30-second timer) must never produce repeated toasts.
+    const key = `${kind}:${kind === "error" ? detail : ""}`;
+    if (key !== lastStatusKey) {
+      if (lastStatusKey !== null || kind !== "online") {
+        const text = kind === "online" && ["syncing", "pending"].includes(previousStatus)
+          ? "Perubahanmu sudah tersimpan. ♡"
+          : kind === "online" && previousStatus === "offline"
+            ? "Koneksi kembali. Cerita siap diperbarui."
+            : detail;
+        V.toast(text, 3000);
+      }
+      lastStatusKey = key;
+      previousStatus = kind;
+    }
     if ($("drafts-dialog").open) await renderDrafts();
   }
   async function load() {
@@ -896,6 +921,7 @@
   }
   $("sync-now").onclick = () => sync(true).then(() => V.refresh());
   $("drafts-open").onclick = () => {
+    $("sync-dialog").close();
     $("drafts-dialog").showModal();
     renderDrafts().catch((e) => V.toast(V.errorText(e)));
   };
@@ -929,6 +955,8 @@
     selected = "";
     month = "";
     lastError = "";
+    storageError = false;
+    lastStatusKey = previousStatus = null;
     if (map) map.remove();
     if (picker) picker.remove();
     map = null;

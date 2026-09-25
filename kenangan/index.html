@@ -2,7 +2,7 @@
 <html lang="id">
   <head>
     <base href="../" />
-    <meta name="cmv-build" content="v5.0" />
+    <meta name="cmv-build" content="v5.1" />
     <meta charset="utf-8" />
     <meta
       name="viewport"
@@ -34,6 +34,7 @@
     <script defer src="./router.js"></script>
   </head>
   <body data-page="kenangan">
+    <div class="viewport-shell">
     <div id="boot-status" class="banner" role="status">
       <span id="boot-message">Menyiapkan halaman cerita kita…</span>
       <button id="boot-retry" class="text-button" type="button" hidden>
@@ -41,16 +42,6 @@
       </button>
     </div>
     <a class="skip-link" href="#content" data-skip>Langsung ke isi</a>
-    <div id="network-banner" class="banner" role="status" hidden>
-      Sedang luring · Arsip tersimpan tetap bisa dibaca. Draf akan dikirim saat
-      tersambung.
-    </div>
-    <div id="update-banner" class="banner" hidden>
-      Versi baru siap.
-      <button id="update-button" class="text-button" type="button">
-        Muat ulang
-      </button>
-    </div>
     <header class="site-header">
       <button
         class="brand"
@@ -62,16 +53,17 @@
         <span>Couple Memory Vault<small>SEBUAH RUANG UNTUK KITA</small></span>
       </button>
       <div class="header-actions">
-        <button
-          id="install-button"
-          class="button small ghost"
-          type="button"
-          hidden
-        >
-          Pasang di HP
-        </button>
-        <button id="admin-open" class="button small ghost" type="button" hidden>
-          + Tambah
+        <button id="sync-indicator" class="icon-button sync-indicator"
+          type="button" aria-label="Buka status sinkronisasi dan draf"
+          aria-haspopup="dialog" aria-controls="sync-dialog"
+          title="Status sinkronisasi dan draf" data-status="online" hidden>
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none"
+            stroke="currentColor" stroke-width="1.7" stroke-linecap="round"
+            stroke-linejoin="round" aria-hidden="true" focusable="false">
+            <path d="M6 18a4 4 0 0 1-.8-7.9A7 7 0 0 1 18.7 9a4.5 4.5 0 0 1-.2 9H6Z" />
+            <path class="cloud-slash" d="m3 3 18 18" />
+          </svg>
+          <span class="sync-dot" aria-hidden="true"></span>
         </button>
         <button
           id="lock-button"
@@ -226,15 +218,6 @@
           </div>
         </section>
         <p id="app-message" class="form-message" role="status"></p>
-        <div class="sync-strip">
-          <span id="sync-status" role="status"
-            >Arsip luring sedang disiapkan…</span
-          ><button id="sync-now" type="button" class="text-button">
-            Sinkronkan</button
-          ><button id="drafts-open" type="button" class="text-button">
-            Draf &amp; antrean
-          </button>
-        </div>
         <p
           id="route-status"
           class="sr-only"
@@ -287,7 +270,7 @@
     ></div>
     <div id="map-list" class="map-list"></div>
   </details>
-  <div id="gallery" class="gallery masonry" aria-live="polite"></div>
+  <div id="gallery" class="gallery masonry" aria-label="Daftar kenangan"></div>
   <p
     id="gallery-status"
     class="tiny muted"
@@ -297,18 +280,23 @@
   <p id="gallery-empty" class="empty-state">
     Belum ada kenangan. Cerita pertama kita sedang menunggu.
   </p>
-  <button
-    id="load-more"
-    class="button ghost center-button"
-    type="button"
-    hidden
-  >
-    Lihat kenangan lainnya
-  </button>
+  <nav class="gallery-pagination" aria-label="Halaman kenangan">
+    <button id="gallery-previous" class="button small ghost" type="button"
+      aria-controls="gallery" disabled>Sebelumnya</button>
+    <span id="gallery-page" class="tiny muted" aria-live="polite">Halaman 1</span>
+    <button id="load-more" class="button small ghost" type="button"
+      aria-controls="gallery" disabled>Berikutnya</button>
+  </nav>
 </section>
 
           </div>
         </div>
+        <button id="admin-open" class="add-fab" type="button"
+          aria-label="Tambah kenangan, impian, atau surat"
+          aria-haspopup="dialog" aria-controls="admin-dialog"
+          title="Tambah cerita" hidden>
+          <span aria-hidden="true">+</span>
+        </button>
         <footer class="site-footer">
           <span aria-hidden="true">♡</span> Beberapa hal layak disimpan
           selamanya.
@@ -318,6 +306,26 @@
         </footer>
       </div>
     </main>
+    </div>
+
+    <dialog id="sync-dialog" aria-labelledby="sync-heading">
+      <div class="dialog-body">
+        <button class="dialog-close icon-button" type="button"
+          data-close="sync-dialog" aria-label="Tutup status sinkronisasi">×</button>
+        <h2 id="sync-heading">Cerita tetap tersimpan</h2>
+        <p id="sync-status" class="muted" role="status" aria-live="polite"
+          aria-atomic="true">Memeriksa perubahan…</p>
+        <div class="inline-actions">
+          <button id="sync-now" type="button" class="button small">Sinkronkan</button>
+          <button id="drafts-open" type="button" class="button small ghost">Draf &amp; antrean</button>
+        </div>
+        <button id="install-button" class="text-button" type="button" hidden>Pasang di HP</button>
+        <div id="update-banner" hidden>
+          <p>Versi baru siap. Simpan tulisanmu sebelum memuat ulang.</p>
+          <button id="update-button" class="button small" type="button">Muat ulang</button>
+        </div>
+      </div>
+    </dialog>
 
     <dialog id="admin-login-dialog" aria-labelledby="admin-login-heading">
       <div class="dialog-body">
@@ -670,7 +678,9 @@
         <p class="letter-signature">Dengan seluruh hatiku, ♡</p>
       </article>
     </dialog>
-    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+    <div id="toast" class="toast" aria-hidden="true" hidden></div>
+    <div id="toast-announcement" class="sr-only" role="status"
+      aria-live="polite" aria-atomic="true"></div>
     <audio id="background-music" preload="none"></audio>
     <dialog id="calendar-dialog" aria-labelledby="calendar-dialog-title">
       <div class="dialog-content">

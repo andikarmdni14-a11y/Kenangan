@@ -1,0 +1,47 @@
+<section
+  id="journal-section"
+  class="paper panel"
+  aria-labelledby="journal-heading"
+>
+  <p class="eyebrow">SATU HARI, SATU CERITA</p>
+  <h2 id="journal-heading">Jurnal hari ini</h2>
+  <div id="viewer-journal" hidden>
+    <p id="daily-date" class="tiny muted"></p>
+    <p id="daily-question" class="prompt-question">Memuat pertanyaan…</p>
+    <form id="journal-form" novalidate>
+      <label for="journal-answer">Jawabanmu hari ini</label
+      ><textarea
+        id="journal-answer"
+        name="answer"
+        rows="4"
+        maxlength="3000"
+        required
+        aria-describedby="daily-question"
+        placeholder="Tidak harus sempurna. Ceritakan saja…"
+      ></textarea>
+      <div class="capsule-options">
+        <label class="check-label"
+          ><input id="journal-capsule" type="checkbox" /> Jadikan kapsul
+          waktu</label
+        >
+        <div id="journal-unlock-wrap" hidden>
+          <label for="journal-unlock">Buka pada tanggal &amp; jam</label
+          ><input id="journal-unlock" name="unlock" type="datetime-local" />
+          <p class="tiny muted">
+            Jam mengikuti perangkatmu. Setelah terkirim, isi terkunci untuk
+            kalian berdua sampai waktunya tiba.
+          </p>
+        </div>
+      </div>
+      <button class="button small" type="submit">Simpan ceritaku</button>
+      <p id="journal-message" class="form-message" role="status"></p>
+    </form>
+    <details class="journal-history">
+      <summary>Cerita kita yang tersimpan</summary>
+      <div id="journal-history"></div>
+    </details>
+  </div>
+  <p id="admin-journal-note" class="muted" hidden>
+    Cerita harian kita tersimpan bersama.
+  </p>
+</section>

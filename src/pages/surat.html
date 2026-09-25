@@ -1,0 +1,59 @@
+<div class="letters-layout">
+  <section
+    id="letters-section"
+    class="paper panel letter-panel"
+    aria-labelledby="letters-heading"
+  >
+    <p class="eyebrow">DARI HATI, UNTUK HATI</p>
+    <h2 id="letters-heading">Ada surat untukmu.</h2>
+    <button
+      id="envelope-button"
+      class="envelope-button"
+      type="button"
+      aria-label="Buka surat cinta"
+      disabled
+    >
+      <span class="envelope" aria-hidden="true"
+        ><span class="envelope-letter">Untuk kamu, ♡</span
+        ><span class="envelope-front"></span><span class="envelope-flap"></span
+        ><span class="envelope-seal">♡</span></span
+      >
+    </button>
+    <p id="letter-teaser" class="muted">Surat pertama kita belum ditulis.</p>
+    <label id="letter-select-label" for="letter-select" class="tiny" hidden
+      >Pilih surat</label
+    ><select id="letter-select" hidden></select>
+  </section>
+  <section
+    id="reply-panel"
+    class="paper panel"
+    aria-labelledby="reply-heading"
+    hidden
+  >
+    <p class="eyebrow">AKU INGIN KAMU TAHU</p>
+    <h2 id="reply-heading">Titip sebuah pesan</h2>
+    <p class="muted">
+      Sesuatu yang ingin kamu bilang, sesederhana “aku kangen”.
+    </p>
+    <p id="reply-context" class="pill" hidden></p>
+    <button id="clear-reply-context" class="text-button" type="button" hidden>
+      Kirim tanpa mengaitkan kenangan
+    </button>
+    <form id="reply-form" novalidate>
+      <label class="sr-only" for="reply-body">Pesan untuk pasanganmu</label
+      ><textarea
+        id="reply-body"
+        name="body"
+        rows="4"
+        maxlength="2000"
+        required
+        placeholder="Hari ini aku…"
+      ></textarea
+      ><button id="reply-submit" class="button small" type="submit">
+        Kirim pesan
+      </button>
+      <p id="reply-message" class="form-message" role="status"></p>
+      <p id="reply-cooldown" class="tiny muted" aria-live="polite"></p>
+    </form>
+  </section>
+</div>

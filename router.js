@@ -35,6 +35,11 @@
     booting = false,
     started = false;
   const loadedScripts = new Set();
+  const navigation = document.querySelector(".section-nav");
+  if ("ResizeObserver" in window) new ResizeObserver(() => {
+    const height = navigation.getBoundingClientRect().height;
+    if (height > 0) document.documentElement.style.setProperty("--bottom-nav-height", `${height}px`);
+  }).observe(navigation);
   const reduced = matchMedia("(prefers-reduced-motion: reduce)");
   function all(selector) {
     const found = [...document.querySelectorAll(selector)];
@@ -171,10 +176,10 @@
       const view = parsed.getElementById("route-view");
       if (
         view?.dataset.page !== page ||
-        parsed.querySelector('meta[name="cmv-build"]')?.content !== "v5.0"
+        parsed.querySelector('meta[name="cmv-build"]')?.content !== "v5.1"
       )
         throw Error(
-          `Berkas halaman ${routes[page].title} belum cocok. Salin seluruh isi paket versi 5.`,
+          `Berkas halaman ${routes[page].title} belum cocok. Salin seluruh isi paket versi 5.1.`,
         );
       views.set(page, document.importNode(view, true));
     } finally {
@@ -219,7 +224,7 @@
         await script(name);
       if (!window.Vault || !window.VaultFeatures)
         throw Error(
-          "Modul aplikasi belum lengkap. Pastikan seluruh paket versi 5 sudah disalin, lalu muat ulang.",
+          "Modul aplikasi belum lengkap. Pastikan seluruh paket versi 5.1 sudah disalin, lalu muat ulang.",
         );
       started = true;
       get("content").inert = false;
