@@ -33,7 +33,7 @@
     <script defer src="./offline.js"></script>
     <script defer src="./router.js"></script>
   </head>
-  <body data-page="{{page}}">
+  <body data-page="{{page}}" data-nav-labels="visible">
     <div class="viewport-shell">
     <div id="boot-status" class="banner" role="status">
       <span id="boot-message">Menyiapkan halaman cerita kita…</span>
@@ -49,7 +49,7 @@
         data-admin-unlock
         aria-label="Couple Memory Vault; ketuk cepat tiga kali untuk masuk sebagai Admin"
       >
-        <span class="brand-icon" aria-hidden="true">♡</span>
+        <span class="brand-icon" aria-hidden="true">{{brand_mark}}</span>
         <span>Couple Memory Vault<small>SEBUAH RUANG UNTUK KITA</small></span>
       </button>
       <div class="header-actions">
@@ -156,11 +156,21 @@
 
       <div id="app-screen" class="app-shell" hidden>
         <nav class="section-nav" aria-label="Halaman cerita kita">
-          <a data-route="utama" href="./">Utama</a>
-          <a data-route="kenangan" href="./kenangan/">Kenangan</a>
-          <a data-route="jurnal" href="./jurnal/">Jurnal</a>
-          <a data-route="impian" href="./impian/">Impian</a>
-          <a data-route="surat" href="./surat/">Surat</a>
+          <a data-route="utama" href="./" aria-label="Buka halaman Utama" title="Utama">
+            {{nav_utama}}<span class="nav-label">Utama</span>
+          </a>
+          <a data-route="kenangan" href="./kenangan/" aria-label="Buka halaman Kenangan" title="Kenangan">
+            {{nav_kenangan}}<span class="nav-label">Kenangan</span>
+          </a>
+          <a data-route="jurnal" href="./jurnal/" aria-label="Buka halaman Jurnal" title="Jurnal">
+            {{nav_jurnal}}<span class="nav-label">Jurnal</span>
+          </a>
+          <a data-route="impian" href="./impian/" aria-label="Buka halaman Impian" title="Impian">
+            {{nav_impian}}<span class="nav-label">Impian</span>
+          </a>
+          <a data-route="surat" href="./surat/" aria-label="Buka halaman Surat" title="Surat">
+            {{nav_surat}}<span class="nav-label">Surat</span>
+          </a>
         </nav>
         <section class="music-player paper" aria-label="Pemutar musik bersama">
           <span class="music-cover" aria-hidden="true">♫</span>
@@ -258,6 +268,15 @@
           <button id="drafts-open" type="button" class="button small ghost">Draf &amp; antrean</button>
         </div>
         <button id="install-button" class="text-button" type="button" hidden>Pasang di HP</button>
+        <details class="navigation-preferences">
+          <summary>Tampilan navigasi</summary>
+          <label class="check-label" for="nav-labels-toggle">
+            <input id="nav-labels-toggle" type="checkbox" checked
+              aria-describedby="nav-labels-help" />
+            Tampilkan nama menu
+          </label>
+          <p id="nav-labels-help" class="tiny muted">Matikan untuk memakai ikon saja.</p>
+        </details>
         <div id="update-banner" hidden>
           <p>Versi baru siap. Simpan tulisanmu sebelum memuat ulang.</p>
           <button id="update-button" class="button small" type="button">Muat ulang</button>

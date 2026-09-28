@@ -2,7 +2,7 @@
    tidak pernah masuk Cache Storage; arsip pribadi dikelola IndexedDB per akun. */
 // Keep independent deployments on the same origin from deleting each other's shell.
 const PREFIX = `cmv-shell-${encodeURIComponent(self.registration.scope)}-`;
-const CACHE = PREFIX + "v5.1-20260925-1";
+const CACHE = PREFIX + "v5.1-20260928-icons-2";
 const SHELL = [
   "./",
   "./index.html",

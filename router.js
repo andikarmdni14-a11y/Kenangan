@@ -36,6 +36,29 @@
     started = false;
   const loadedScripts = new Set();
   const navigation = document.querySelector(".section-nav");
+  const labelToggle = document.getElementById("nav-labels-toggle");
+  const labelPreferenceKey = "cmv-navigation-labels";
+  function setNavigationLabels(visible) {
+    document.body.dataset.navLabels = visible ? "visible" : "hidden";
+    if (labelToggle) labelToggle.checked = visible;
+  }
+  try {
+    setNavigationLabels(localStorage.getItem(labelPreferenceKey) !== "hidden");
+  } catch {
+    setNavigationLabels(true);
+  }
+  labelToggle?.addEventListener("change", () => {
+    setNavigationLabels(labelToggle.checked);
+    try {
+      localStorage.setItem(labelPreferenceKey, labelToggle.checked ? "visible" : "hidden");
+    } catch {
+      // The choice still works in this tab if persistent storage is unavailable.
+    }
+  });
+  window.addEventListener("storage", (event) => {
+    if (event.key === labelPreferenceKey || event.key === null)
+      setNavigationLabels(event.newValue !== "hidden");
+  });
   if ("ResizeObserver" in window) new ResizeObserver(() => {
     const height = navigation.getBoundingClientRect().height;
     if (height > 0) document.documentElement.style.setProperty("--bottom-nav-height", `${height}px`);

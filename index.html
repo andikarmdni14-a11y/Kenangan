@@ -33,7 +33,7 @@
     <script defer src="./offline.js"></script>
     <script defer src="./router.js"></script>
   </head>
-  <body data-page="utama">
+  <body data-page="utama" data-nav-labels="visible">
     <div class="viewport-shell">
     <div id="boot-status" class="banner" role="status">
       <span id="boot-message">Menyiapkan halaman cerita kita…</span>
@@ -49,7 +49,11 @@
         data-admin-unlock
         aria-label="Couple Memory Vault; ketuk cepat tiga kali untuk masuk sebagai Admin"
       >
-        <span class="brand-icon" aria-hidden="true">♡</span>
+        <span class="brand-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" class="brand-mark" viewBox="0 0 40 40" width="36" height="36" aria-hidden="true" focusable="false">
+  <circle cx="20" cy="20" r="19" fill="#f4d5e2" />
+  <path d="M19.8 31.2 10.1 23.3C2.3 17 11.1 6.4 19.8 13.2 28.1 6.6 37.1 17.1 29.4 23.4Z" fill="#a84670" />
+  <path d="m31.5 4.5 1.8 4.5 4.5 1.8-4.5 1.8-1.8 4.5-1.8-4.5-4.5-1.8L29.7 9Z" fill="#648570" stroke="#f4d5e2" stroke-width="1.1" stroke-linejoin="round" />
+</svg></span>
         <span>Couple Memory Vault<small>SEBUAH RUANG UNTUK KITA</small></span>
       </button>
       <div class="header-actions">
@@ -156,11 +160,36 @@
 
       <div id="app-screen" class="app-shell" hidden>
         <nav class="section-nav" aria-label="Halaman cerita kita">
-          <a data-route="utama" href="./">Utama</a>
-          <a data-route="kenangan" href="./kenangan/">Kenangan</a>
-          <a data-route="jurnal" href="./jurnal/">Jurnal</a>
-          <a data-route="impian" href="./impian/">Impian</a>
-          <a data-route="surat" href="./surat/">Surat</a>
+          <a data-route="utama" href="./" aria-label="Buka halaman Utama" title="Utama">
+            <svg xmlns="http://www.w3.org/2000/svg" class="nav-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  <path d="m3 10 9-7 9 7v9a2 2 0 0 1-2 2h-4v-7H9v7H5a2 2 0 0 1-2-2Z" />
+</svg><span class="nav-label">Utama</span>
+          </a>
+          <a data-route="kenangan" href="./kenangan/" aria-label="Buka halaman Kenangan" title="Kenangan">
+            <svg xmlns="http://www.w3.org/2000/svg" class="nav-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  <path d="M6 6H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
+  <rect x="6" y="2" width="16" height="16" rx="2.5" />
+  <circle cx="11" cy="7" r="1" fill="currentColor" stroke="none" />
+  <path d="m7 15 4-4 3 3 3-3 4 4" />
+</svg><span class="nav-label">Kenangan</span>
+          </a>
+          <a data-route="jurnal" href="./jurnal/" aria-label="Buka halaman Jurnal" title="Jurnal">
+            <svg xmlns="http://www.w3.org/2000/svg" class="nav-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  <rect x="5" y="3" width="15" height="18" rx="2.5" />
+  <path d="M8 3v18M2.5 7H6M2.5 12H6M2.5 17H6M11 8h6M11 12h4" />
+</svg><span class="nav-label">Jurnal</span>
+          </a>
+          <a data-route="impian" href="./impian/" aria-label="Buka halaman Impian" title="Impian">
+            <svg xmlns="http://www.w3.org/2000/svg" class="nav-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  <path d="m12 3 2.8 5.7 6.3.9-4.6 4.5 1.1 6.3-5.6-3-5.6 3 1.1-6.3-4.6-4.5 6.3-.9Z" />
+</svg><span class="nav-label">Impian</span>
+          </a>
+          <a data-route="surat" href="./surat/" aria-label="Buka halaman Surat" title="Surat">
+            <svg xmlns="http://www.w3.org/2000/svg" class="nav-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  <rect x="2.5" y="5" width="19" height="14" rx="3" />
+  <path d="m3.5 7 7.1 5.2a2.3 2.3 0 0 0 2.8 0L20.5 7" />
+</svg><span class="nav-label">Surat</span>
+          </a>
         </nav>
         <section class="music-player paper" aria-label="Pemutar musik bersama">
           <span class="music-cover" aria-hidden="true">♫</span>
@@ -339,9 +368,7 @@
         <footer class="site-footer">
           <span aria-hidden="true">♡</span> Beberapa hal layak disimpan
           selamanya.
-          <p id="install-help" class="tiny">
-            Di iPhone: buka lewat Safari → Bagikan → Tambah ke Layar Utama.
-          </p>
+          <p id="install-help" class="tiny"></p>
         </footer>
       </div>
     </main>
@@ -359,6 +386,15 @@
           <button id="drafts-open" type="button" class="button small ghost">Draf &amp; antrean</button>
         </div>
         <button id="install-button" class="text-button" type="button" hidden>Pasang di HP</button>
+        <details class="navigation-preferences">
+          <summary>Tampilan navigasi</summary>
+          <label class="check-label" for="nav-labels-toggle">
+            <input id="nav-labels-toggle" type="checkbox" checked
+              aria-describedby="nav-labels-help" />
+            Tampilkan nama menu
+          </label>
+          <p id="nav-labels-help" class="tiny muted">Matikan untuk memakai ikon saja.</p>
+        </details>
         <div id="update-banner" hidden>
           <p>Versi baru siap. Simpan tulisanmu sebelum memuat ulang.</p>
           <button id="update-button" class="button small" type="button">Muat ulang</button>
