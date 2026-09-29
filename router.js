@@ -199,10 +199,10 @@
       const view = parsed.getElementById("route-view");
       if (
         view?.dataset.page !== page ||
-        parsed.querySelector('meta[name="cmv-build"]')?.content !== "v5.1"
+        parsed.querySelector('meta[name="cmv-build"]')?.content !== "v6-hidden-keyhole-1"
       )
         throw Error(
-          `Berkas halaman ${routes[page].title} belum cocok. Salin seluruh isi paket versi 5.1.`,
+          `Berkas halaman ${routes[page].title} belum cocok. Salin seluruh isi paket v6 Hidden Keyhole.`,
         );
       views.set(page, document.importNode(view, true));
     } finally {
@@ -227,6 +227,38 @@
       document.head.append(el);
     });
   }
+  async function dismissSplash() {
+    const splash = get("boot-status");
+    const moveFocus = splash.contains(document.activeElement);
+    if (!reduced.matches && splash.animate) {
+      const fade = splash.animate([{ opacity: 1 }, { opacity: 0 }], {
+        duration: 280,
+        easing: "ease-out",
+        fill: "forwards",
+      });
+      // A background tab or a cancelled animation must not keep the app blocked.
+      let timeout;
+      await Promise.race([
+        fade.finished.catch(() => {}),
+        new Promise((resolve) => { timeout = setTimeout(resolve, 400); }),
+      ]);
+      clearTimeout(timeout);
+      splash.hidden = true;
+      fade.cancel();
+    } else splash.hidden = true;
+    get("content").inert = false;
+    document.querySelector(".site-header").inert = false;
+    document.querySelector(".skip-link").inert = false;
+    if (moveFocus) {
+      const target = get("app-screen").hidden
+        ? get("viewer-password")
+        : outlet.querySelector("h1,h2");
+      if (target) {
+        if (!target.matches("input")) target.tabIndex = -1;
+        target.focus({ preventScroll: true });
+      }
+    }
+  }
   async function boot() {
     if (booting || started) return;
     booting = true;
@@ -243,15 +275,13 @@
       all("form").forEach((form) => {
         form.noValidate = true;
       });
-      for (const name of ["main.js", "features.js", "admin.js"])
+      for (const name of ["main.js", "features.js", "memories-core.js", "memory-book.js", "epic.js", "admin.js"])
         await script(name);
       if (!window.Vault || !window.VaultFeatures)
         throw Error(
-          "Modul aplikasi belum lengkap. Pastikan seluruh paket versi 5.1 sudah disalin, lalu muat ulang.",
+          "Modul aplikasi belum lengkap. Pastikan seluruh paket versi 6 sudah disalin, lalu muat ulang.",
         );
       started = true;
-      get("content").inert = false;
-      get("boot-status").hidden = true;
       markPage();
       history.scrollRestoration = "manual";
       const legacyPage = legacy[location.hash];
@@ -262,6 +292,7 @@
         });
       else history.replaceState({ cmvPage: current, scrollY: 0 }, "");
       document.dispatchEvent(new CustomEvent("cmv:booted"));
+      await dismissSplash();
     } catch (error) {
       get("boot-message").textContent =
         error.name === "AbortError"

@@ -17,6 +17,7 @@
     more: false,
     galleryOffset: 0,
     galleryPage: 0,
+    archiveFilters: { tag: null, withLocation: false, kind: null },
     musicTracks: [],
     musicTrackId: null,
     view: "masonry",
@@ -95,7 +96,7 @@
     if (/row-level security|permission denied/i.test(raw))
       return "Akses tidak diizinkan. Periksa role akun dan setup.sql.";
     if (/schema cache|does not exist|PGRST202/i.test(raw))
-      return "Fitur belum siap di database. Jalankan upgrade-v4.sql, lalu muat ulang.";
+      return "Pembaruan database belum terpasang. Jalankan upgrade-v6.sql, lalu muat ulang.";
     if (/COOLDOWN:/.test(raw)) return raw.replace("COOLDOWN: ", "");
     return raw;
   }
@@ -415,6 +416,7 @@
     document.dispatchEvent(new CustomEvent("cmv:locked"));
   }
   async function lock(force = false) {
+    if (force !== true && window.VaultEpic && !(await window.VaultEpic.canLock())) return;
     if (
       force !== true &&
       window.VaultFeatures &&
@@ -534,6 +536,7 @@
         loadLetters(),
         loadDaily(),
         loadMusicTracks(),
+        window.VaultEpic?.load(),
       ];
       const results = await Promise.allSettled(tasks);
       if (!alive(epoch)) return;
@@ -680,10 +683,15 @@
     const button = node("button", "memory-open");
     button.type = "button";
     button.setAttribute("aria-label", `Buka kenangan: ${memory.title}`);
-    const names = { image: "Foto", video: "Video", audio: "Audio" };
+    const names = { image: "Foto", video: "Video", audio: "Pesan Suara" };
     if (memory.media_kind === "image") {
       visual.append(node("span", "loading-placeholder", "Memuat foto…"));
       visual._memory = memory;
+    } else if (memory.media_kind === "audio") {
+      const wave = node("span", "voice-wave");
+      wave.setAttribute("aria-hidden", "true");
+      for (let i = 0; i < 9; i++) wave.append(node("i"));
+      visual.append(wave);
     } else
       visual.append(
         node("span", "media-symbol", memory.media_kind === "video" ? "▷" : "♫"),
@@ -694,6 +702,11 @@
     copy.append(node("h3", "", memory.title), node("p", "", memory.caption));
     const time = node("time", "", formatDate(memory.occurred_on));
     time.dateTime = memory.occurred_on;
+    if (memory.tags?.length) {
+      const labels = node("div", "memory-tags");
+      for (const tag of memory.tags) labels.append(node("span", "", `#${tag}`));
+      copy.append(labels);
+    }
     copy.append(time);
     if (memory.unlock_at && Date.parse(memory.unlock_at) > now())
       copy.append(
@@ -701,8 +714,6 @@
       );
     button.append(visual, copy);
     card.append(button);
-    if (window.VaultFeatures)
-      card.append(window.VaultFeatures.reactionBar("memory", memory.id));
     button.addEventListener("click", () => openMemory(memory));
     return card;
   }
@@ -721,8 +732,10 @@
       // If deletions empty the last page, walk back to the nearest available page.
       do {
         const offset = page * GALLERY_PAGE_SIZE;
-        rows = await local.cached(`gallery:${offset}`, () => unwrap(
-          db.rpc("list_memories", { p_offset: offset, p_limit: GALLERY_PAGE_SIZE }),
+        const filters = state.archiveFilters;
+        rows = await local.cached(`archive-v6:${JSON.stringify(filters)}:${offset}`, () => unwrap(
+          db.rpc("cmv_list_archive", { p_offset: offset, p_limit: GALLERY_PAGE_SIZE,
+            p_tag: filters.tag, p_with_location: filters.withLocation, p_kind: filters.kind }),
         ));
         if (!alive(epoch)) return;
         if (!rows.length && page > 0) { reachedEnd = true; page--; }
@@ -749,7 +762,7 @@
       $("gallery-page").textContent = `Halaman ${page + 1}`;
       $("gallery-status").textContent = rows.length
         ? `Kenangan ${page * GALLERY_PAGE_SIZE + 1}–${state.galleryOffset}${state.more ? "" : " · halaman terakhir"}.`
-        : "Belum ada kenangan tersimpan.";
+        : "Belum ada kenangan yang cocok dengan filter ini.";
       if (options.focus && gallery.isConnected) {
         const heading = $("gallery-heading");
         heading.tabIndex = -1;
@@ -794,6 +807,7 @@
     stopMusic();
     stopMedia($("memory-view-media"));
     currentMemory = memory;
+    document.dispatchEvent(new CustomEvent("cmv:memory-open", {detail: memory}));
     $("memory-location").onclick = () =>
       window.VaultFeatures.openLocation(memory);
     $("memory-view-title").textContent = memory.title;
@@ -1124,14 +1138,22 @@
   }
   async function loadMusicTracks() {
     const epoch = state.epoch;
-    const rows = await readAll(
-      "memories",
-      "id,title,media_kind,media_path,unlock_at,created_at",
-    );
+    const rows = await local.cached("music-v6", async () => {
+      const tracks = [];
+      for (let offset = 0; ; offset += 100) {
+        const page = await unwrap(db.from("memories")
+          .select("id,title,type,media_kind,media_path,unlock_at,created_at")
+          .eq("media_kind", "audio").in("type", ["music", "legacy_audio"])
+          .order("created_at", {ascending: false}).order("id").range(offset, offset + 99));
+        tracks.push(...page);
+        if (page.length < 100) return tracks;
+      }
+    });
     if (!alive(epoch)) return;
     state.musicTracks = rows.filter(
       (m) =>
         m.media_kind === "audio" &&
+        ["music", "legacy_audio"].includes(m.type) &&
         (!m.unlock_at || Date.parse(m.unlock_at) <= now()),
     );
     const tracks = state.musicTracks;
@@ -1296,6 +1318,13 @@
     loadLetters,
     loadSettings,
     loadMusicTracks,
+    async filterGallery(filters) {
+      if (galleryBusy) return false;
+      const before = state.archiveFilters;
+      state.archiveFilters = filters;
+      try { await loadGallery(true); return true; }
+      catch (error) { state.archiveFilters = before; throw error; }
+    },
     stopMedia,
   };
 
@@ -1507,7 +1536,7 @@
     if (event.persisted && state.user) refresh();
   });
   window.addEventListener("beforeunload", (event) => {
-    if (window.VaultFeatures?.unsaved || pages.query("form[data-busy]")) {
+    if (window.VaultFeatures?.unsaved || window.VaultEpic?.unsaved || pages.query("form[data-busy]")) {
       event.preventDefault();
       event.returnValue = "";
     }

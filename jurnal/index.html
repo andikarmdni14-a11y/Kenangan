@@ -2,7 +2,7 @@
 <html lang="id">
   <head>
     <base href="../" />
-    <meta name="cmv-build" content="v5.1" />
+    <meta name="cmv-build" content="v6-hidden-keyhole-1" />
     <meta charset="utf-8" />
     <meta
       name="viewport"
@@ -16,14 +16,19 @@
     />
     <meta name="referrer" content="strict-origin-when-cross-origin" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="application-name" content="Couple Memory Vault" />
+    <meta name="apple-mobile-web-app-title" content="Cerita Kita" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta
       http-equiv="Content-Security-Policy"
       content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https://tile.openstreetmap.org; media-src 'self' blob:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests"
     />
     <title>Jurnal Harian · Couple Memory Vault</title>
-    <link rel="icon" type="image/png" href="./icons/icon-192.png" />
-    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="./icons/hidden-keyhole-favicon-16.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="./icons/hidden-keyhole-favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="64x64" href="./icons/hidden-keyhole-favicon-64.png" />
+    <link rel="icon" type="image/svg+xml" sizes="any" href="./icons/hidden-keyhole.svg" />
+    <link rel="apple-touch-icon" sizes="180x180" href="./icons/hidden-keyhole-apple-180.png" />
     <link rel="manifest" href="./manifest.json" />
     <link rel="stylesheet" href="./style.css" />
     <link rel="stylesheet" href="./vendor/leaflet.css" />
@@ -35,24 +40,27 @@
   </head>
   <body data-page="jurnal" data-nav-labels="visible">
     <div class="viewport-shell">
-    <div id="boot-status" class="banner" role="status">
-      <span id="boot-message">Menyiapkan halaman cerita kita…</span>
-      <button id="boot-retry" class="text-button" type="button" hidden>
+    <section id="boot-status" class="brand-splash" aria-labelledby="boot-title">
+      <div class="splash-logo" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" class="brand-mark" viewBox="48 48 416 416" width="40" height="40" aria-hidden="true" focusable="false">
+  <path fill="#e14479" fill-rule="evenodd" d="M256 140C238 97 205 80 165 80C109 80 64 125 64 184C64 273 163 360 256 432C349 360 448 273 448 184C448 125 403 80 347 80C307 80 274 97 256 140Z M242 255.659A31 31 0 1 1 270 255.659L281 305Q282 313 274 313H238Q230 313 231 305Z" />
+</svg></div>
+      <h1 id="boot-title">Couple Memory Vault</h1>
+      <p id="boot-message" role="status" aria-live="polite">Menyiapkan halaman cerita kita…</p>
+      <button id="boot-retry" class="button" type="button" hidden>
         Coba lagi
       </button>
-    </div>
-    <a class="skip-link" href="#content" data-skip>Langsung ke isi</a>
-    <header class="site-header">
+      <noscript>Aktifkan JavaScript untuk membuka kenangan.</noscript>
+    </section>
+    <a class="skip-link" href="#content" data-skip inert>Langsung ke isi</a>
+    <header class="site-header" inert>
       <button
         class="brand"
         type="button"
         data-admin-unlock
         aria-label="Couple Memory Vault; ketuk cepat tiga kali untuk masuk sebagai Admin"
       >
-        <span class="brand-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" class="brand-mark" viewBox="0 0 40 40" width="36" height="36" aria-hidden="true" focusable="false">
-  <circle cx="20" cy="20" r="19" fill="#f4d5e2" />
-  <path d="M19.8 31.2 10.1 23.3C2.3 17 11.1 6.4 19.8 13.2 28.1 6.6 37.1 17.1 29.4 23.4Z" fill="#a84670" />
-  <path d="m31.5 4.5 1.8 4.5 4.5 1.8-4.5 1.8-1.8 4.5-1.8-4.5-4.5-1.8L29.7 9Z" fill="#648570" stroke="#f4d5e2" stroke-width="1.1" stroke-linejoin="round" />
+        <span class="brand-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" class="brand-mark" viewBox="48 48 416 416" width="40" height="40" aria-hidden="true" focusable="false">
+  <path fill="#e14479" fill-rule="evenodd" d="M256 140C238 97 205 80 165 80C109 80 64 125 64 184C64 273 163 360 256 432C349 360 448 273 448 184C448 125 403 80 347 80C307 80 274 97 256 140Z M242 255.659A31 31 0 1 1 270 255.659L281 305Q282 313 274 313H238Q230 313 231 305Z" />
 </svg></span>
         <span>Couple Memory Vault<small>SEBUAH RUANG UNTUK KITA</small></span>
       </button>
@@ -108,7 +116,9 @@
           </div>
         </div>
         <div class="lock-card paper">
-          <div class="lock-emblem" aria-hidden="true">♡</div>
+          <div class="lock-emblem" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" class="brand-mark" viewBox="48 48 416 416" width="40" height="40" aria-hidden="true" focusable="false">
+  <path fill="#e14479" fill-rule="evenodd" d="M256 140C238 97 205 80 165 80C109 80 64 125 64 184C64 273 163 360 256 432C349 360 448 273 448 184C448 125 403 80 347 80C307 80 274 97 256 140Z M242 255.659A31 31 0 1 1 270 255.659L281 305Q282 313 274 313H238Q230 313 231 305Z" />
+</svg></div>
           <p class="eyebrow">PINTU MENUJU CERITA KITA</p>
           <h2>Selamat datang, kamu.</h2>
           <p>Masukkan kata sandi kenangan untuk membuka ruang kecil kita.</p>
@@ -255,7 +265,24 @@
         ></p>
         <div id="page-outlet">
           <div id="route-view" class="route-view" data-page="jurnal">
-            <section
+            <section id="weekly-section" class="paper panel weekly-panel" aria-labelledby="weekly-heading">
+  <p class="eyebrow">PERTANYAAN MINGGU INI</p>
+  <h2 id="weekly-heading">Saling mengenal, sekali lagi</h2>
+  <p id="weekly-question" class="prompt-question">Buka pertanyaan untuk kita berdua.</p>
+  <p class="tiny muted">Jawaban pasangan terbuka setelah kalian berdua mengirim jawaban. Jawaban yang sudah dikirim tidak bisa diganti.</p>
+  <form id="weekly-form" novalidate>
+    <label for="weekly-answer">Jawabanmu</label>
+    <textarea id="weekly-answer" rows="4" maxlength="3000" required placeholder="Tulis dengan jujur, dari hati…"></textarea>
+    <button id="weekly-submit" class="button small" type="submit" disabled>Kirim jawabanku</button>
+  </form>
+  <div id="weekly-own" class="weekly-answer" hidden></div>
+  <div id="weekly-partner" class="weekly-locked" aria-live="polite">
+    <span aria-hidden="true">▣</span><p>Jawaban pasangan masih terkunci.</p>
+  </div>
+  <p id="weekly-status" class="form-message" role="status"></p>
+  <button id="weekly-refresh" class="text-button" type="button">Periksa jawaban</button>
+</section>
+<section
   id="journal-section"
   class="paper panel"
   aria-labelledby="journal-heading"
@@ -312,7 +339,9 @@
           <span aria-hidden="true">+</span>
         </button>
         <footer class="site-footer">
-          <span aria-hidden="true">♡</span> Beberapa hal layak disimpan
+          <span class="footer-mark" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" class="brand-mark" viewBox="48 48 416 416" width="40" height="40" aria-hidden="true" focusable="false">
+  <path fill="#e14479" fill-rule="evenodd" d="M256 140C238 97 205 80 165 80C109 80 64 125 64 184C64 273 163 360 256 432C349 360 448 273 448 184C448 125 403 80 347 80C307 80 274 97 256 140Z M242 255.659A31 31 0 1 1 270 255.659L281 305Q282 313 274 313H238Q230 313 231 305Z" />
+</svg></span> Beberapa hal layak disimpan
           selamanya.
           <p id="install-help" class="tiny">
             Di iPhone: buka lewat Safari → Bagikan → Tambah ke Layar Utama.
@@ -334,6 +363,21 @@
           <button id="drafts-open" type="button" class="button small ghost">Draf &amp; antrean</button>
         </div>
         <button id="install-button" class="text-button" type="button" hidden>Pasang di HP</button>
+        <div class="book-settings">
+          <h3>Buku kenangan kita</h3>
+          <p class="tiny muted">Simpan foto dan jurnal menjadi buku PDF yang bisa dicetak.</p>
+          <button id="book-open" class="button small ghost" type="button">Cetak Kenanganku</button>
+        </div>
+        <details id="audio-library" class="navigation-preferences">
+          <summary>Atur audio lama</summary>
+          <p class="tiny muted">Tandai rekaman pribadi sebagai Pesan Suara agar masuk ke Rak Kenangan. Lagu tetap menemani di pemutar musik.</p>
+          <div id="audio-library-list"></div>
+          <div class="inline-actions">
+            <button id="audio-previous" class="text-button" type="button" disabled>Sebelumnya</button>
+            <button id="audio-next" class="text-button" type="button" disabled>Berikutnya</button>
+          </div>
+          <p id="audio-library-status" class="tiny muted" role="status"></p>
+        </details>
         <details class="navigation-preferences">
           <summary>Tampilan navigasi</summary>
           <label class="check-label" for="nav-labels-toggle">
@@ -350,6 +394,34 @@
       </div>
     </dialog>
 
+    <dialog id="review-dialog" class="review-dialog" aria-labelledby="review-heading">
+      <div class="review-top">
+        <h2 id="review-heading" class="sr-only">Perjalanan kita setahun ini</h2>
+        <p id="review-progress" class="tiny" role="status"></p>
+        <button class="icon-button" type="button" data-close="review-dialog" aria-label="Tutup kilas balik">×</button>
+      </div>
+      <div id="review-slide" class="review-slide" tabindex="0" aria-label="Cerita saat ini; gunakan panah kanan atau kiri untuk berpindah"></div>
+      <div class="review-bottom">
+        <button id="review-previous" class="button small ghost" type="button" aria-label="Cerita sebelumnya">← Sebelumnya</button>
+        <button id="review-next" class="button small" type="button" aria-label="Cerita berikutnya">Berikutnya →</button>
+      </div>
+    </dialog>
+    <dialog id="book-dialog" aria-labelledby="book-heading">
+      <div class="dialog-body">
+        <button class="dialog-close icon-button" type="button" data-close="book-dialog" aria-label="Tutup buku kenangan">×</button>
+        <p class="eyebrow">UNTUK DISIMPAN SELAMANYA</p>
+        <h2 id="book-heading">Buku kenangan kita</h2>
+        <p class="tiny muted">Foto dan jurnal dalam PDF ukuran A4. Pilih sampai 60 catatan per buku; perkecil rentang tanggal untuk buku berikutnya.</p>
+        <form id="book-form" novalidate>
+          <label for="book-from">Dari tanggal</label><input id="book-from" type="date" required />
+          <label for="book-to">Sampai tanggal</label><input id="book-to" type="date" required />
+          <button id="book-create" class="button" type="submit">Buat PDF</button>
+        </form>
+        <button id="book-cancel" class="text-button" type="button" hidden>Batalkan pembuatan</button>
+        <p id="book-status" class="form-message" role="status"></p>
+        <a id="book-download" class="button small" download="Buku-Kenangan.pdf" hidden>Unduh Buku Kenangan.pdf</a>
+      </div>
+    </dialog>
     <dialog id="admin-login-dialog" aria-labelledby="admin-login-heading">
       <div class="dialog-body">
         <button
@@ -404,7 +476,7 @@
         <details class="admin-section" open>
           <summary>01 · Simpan kenangan baru</summary>
           <form id="upload-form" novalidate>
-            <label for="memory-file">Foto, video, atau audio</label
+            <label for="memory-file">Foto, video, atau pesan suara</label
             ><input
               id="memory-file"
               name="file"
@@ -417,6 +489,18 @@
               diputar.
             </p>
             <div id="upload-preview" class="upload-preview" hidden></div>
+            <div class="inline-actions record-actions">
+              <button id="voice-record" type="button" class="button small ghost">Rekam pesan suara</button>
+              <button id="voice-stop" type="button" class="button small" hidden>Selesai merekam</button>
+            </div>
+            <p id="voice-status" class="tiny muted" role="status"></p>
+            <div id="audio-purpose-wrap" hidden>
+              <label for="memory-audio-purpose">Simpan audio sebagai</label>
+              <select id="memory-audio-purpose" name="audio-purpose">
+                <option value="voice_note">Pesan Suara di Rak Kenangan</option>
+                <option value="music">Lagu di pemutar musik</option>
+              </select>
+            </div>
             <label for="memory-title">Judul kenangan</label
             ><input
               id="memory-title"
@@ -432,6 +516,15 @@
               maxlength="5000"
               placeholder="Apa yang ingin kamu ingat dari hari itu?"
             ></textarea>
+            <label for="memory-tags">Label kenangan (opsional)</label>
+            <input id="memory-tags" name="tags" maxlength="270" placeholder="#Liburan #UlangTahun" aria-describedby="memory-tags-help" />
+            <p id="memory-tags-help" class="tiny muted">Pisahkan dengan spasi atau koma. Maksimal 8 label.</p>
+            <div id="upload-tag-chips" class="tag-strip" aria-label="Label unggahan"></div>
+            <div class="tag-strip" aria-label="Saran label">
+              <button type="button" class="filter-chip" data-add-tag="liburan">#Liburan</button>
+              <button type="button" class="filter-chip" data-add-tag="ulangtahun">#UlangTahun</button>
+              <button type="button" class="filter-chip" data-add-tag="keseharian">#Keseharian</button>
+            </div>
             <div class="form-grid">
               <div>
                 <label for="memory-date">Tanggal kenangan</label
@@ -453,6 +546,8 @@
             </p>
             <fieldset class="location-fields">
               <legend>Lokasi kenangan (opsional)</legend>
+              <label class="check-label"><input id="memory-exif" type="checkbox" checked /> Gunakan lokasi yang tersimpan di foto</label>
+              <p id="exif-status" class="tiny muted" role="status">Koordinat akan diisi jika foto memiliki metadata GPS. Kamu bisa mengubah atau mengosongkannya.</p>
               <label for="memory-place">Nama tempat</label
               ><input
                 id="memory-place"
@@ -618,7 +713,7 @@
               <option value="">Tanpa musik</option>
             </select>
             <p class="tiny muted">
-              Unggah audio terlebih dahulu. Pilihan di sini hanya berisi audio
+              Pilih "Lagu di pemutar musik" saat mengunggah. Pilihan di sini berisi lagu
               yang sudah terbuka. Musik diputar setelah tombolnya ditekan. Semua
               input jam mengikuti zona perangkat.
             </p>
@@ -673,6 +768,7 @@
           <button id="memory-location" class="button small ghost" type="button">
             ⌖ Lokasi
           </button>
+          <button id="memory-favorite" class="button small ghost" type="button" aria-pressed="false">Jadikan favorit</button>
           <a id="memory-download" class="button small ghost" download hidden
             >Unduh file asli</a
           >

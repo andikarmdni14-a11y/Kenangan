@@ -94,10 +94,8 @@
     requireAdmin();
     const epoch = state.epoch;
     await V.loadSettings();
-    const rows = await V.readAll(
-      "memories",
-      "id,title,media_kind,unlock_at,created_at",
-    );
+    await V.loadMusicTracks();
+    const rows = state.musicTracks;
     if (!V.alive(epoch)) return;
     const settings = state.settings;
     $("settings-names").value = settings.couple_names;
@@ -116,6 +114,7 @@
       .filter(
         (memory) =>
           memory.media_kind === "audio" &&
+          ["music", "legacy_audio"].includes(memory.type) &&
           (!memory.unlock_at || Date.parse(memory.unlock_at) <= V.now()),
       )
       .forEach((memory) => {
@@ -283,9 +282,12 @@
       throw new Error(
         "Unggah media membutuhkan internet. Jurnal dan surat tetap bisa ditulis luring.",
       );
-    const point = window.VaultFeatures.locationData();
     const file = formData.get("file");
     const [extension, kind] = fileFormat(file);
+    await window.VaultEpic.prepareUpload(file);
+    if (!V.alive(epoch)) return;
+    const point = window.VaultFeatures.locationData();
+    const tags = window.MemoryCore.normalizeTags(formData.get("tags"));
     const title = String(formData.get("title")).trim();
     if (!title) throw new Error("Judul kenangan tidak boleh kosong.");
     const unlockValue = formData.get("unlock");
@@ -308,6 +310,8 @@
       media_path: path,
       preview_path: null,
       media_kind: kind,
+      type: window.MemoryCore.audioType(kind, formData.get("audio-purpose")),
+      tags,
       occurred_on: formData.get("date"),
       unlock_at: unlockAt,
     };
@@ -392,7 +396,7 @@
           : "Kenangan baru sudah tersimpan. ♡" + locationWarning,
       );
       // Jangan menimpa pengaturan lain yang sedang diketik saat memperbarui opsi musik.
-      if (kind === "audio" && (!unlockAt || Date.parse(unlockAt) <= V.now())) {
+      if (memory.type === "music" && (!unlockAt || Date.parse(unlockAt) <= V.now())) {
         const option = node("option", "", title);
         option.value = id;
         $("settings-music").append(option);

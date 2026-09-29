@@ -1,3 +1,20 @@
+<section id="weekly-section" class="paper panel weekly-panel" aria-labelledby="weekly-heading">
+  <p class="eyebrow">PERTANYAAN MINGGU INI</p>
+  <h2 id="weekly-heading">Saling mengenal, sekali lagi</h2>
+  <p id="weekly-question" class="prompt-question">Buka pertanyaan untuk kita berdua.</p>
+  <p class="tiny muted">Jawaban pasangan terbuka setelah kalian berdua mengirim jawaban. Jawaban yang sudah dikirim tidak bisa diganti.</p>
+  <form id="weekly-form" novalidate>
+    <label for="weekly-answer">Jawabanmu</label>
+    <textarea id="weekly-answer" rows="4" maxlength="3000" required placeholder="Tulis dengan jujur, dari hati…"></textarea>
+    <button id="weekly-submit" class="button small" type="submit" disabled>Kirim jawabanku</button>
+  </form>
+  <div id="weekly-own" class="weekly-answer" hidden></div>
+  <div id="weekly-partner" class="weekly-locked" aria-live="polite">
+    <span aria-hidden="true">▣</span><p>Jawaban pasangan masih terkunci.</p>
+  </div>
+  <p id="weekly-status" class="form-message" role="status"></p>
+  <button id="weekly-refresh" class="text-button" type="button">Periksa jawaban</button>
+</section>
 <section
   id="journal-section"
   class="paper panel"

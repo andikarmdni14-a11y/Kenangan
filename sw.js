@@ -2,7 +2,7 @@
    tidak pernah masuk Cache Storage; arsip pribadi dikelola IndexedDB per akun. */
 // Keep independent deployments on the same origin from deleting each other's shell.
 const PREFIX = `cmv-shell-${encodeURIComponent(self.registration.scope)}-`;
-const CACHE = PREFIX + "v5.1-20260928-icons-2";
+const CACHE = PREFIX + "v6-20260929-hidden-keyhole-1";
 const SHELL = [
   "./",
   "./index.html",
@@ -17,14 +17,21 @@ const SHELL = [
   "./main.js",
   "./features.js",
   "./admin.js",
+  "./memories-core.js",
+  "./memory-book.js",
+  "./epic.js",
+  "./vendor/pdf-lib.min.js",
   "./manifest.json",
   "./vendor/supabase.js",
   "./vendor/leaflet.js",
   "./vendor/leaflet.css",
-  "./icons/icon-192.png",
-  "./icons/icon-512.png",
-  "./icons/maskable-512.png",
-  "./icons/apple-touch-icon.png",
+  "./icons/hidden-keyhole.svg",
+  "./icons/hidden-keyhole-192.png",
+  "./icons/hidden-keyhole-512.png",
+  "./icons/hidden-keyhole-apple-180.png",
+  "./icons/hidden-keyhole-favicon-16.png",
+  "./icons/hidden-keyhole-favicon-32.png",
+  "./icons/hidden-keyhole-favicon-64.png",
 ];
 const URLS = new Set(
   SHELL.map((p) => new URL(p, self.registration.scope).href),

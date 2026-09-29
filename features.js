@@ -123,7 +123,7 @@
             if (rows.length < 100) return all;
           }
         }),
-        local.cached("shared", () => unwrap(db.rpc("cmv_shared_state"))),
+        local.cached("shared-v6", () => unwrap(db.rpc("cmv_shared_state"))),
       ]);
       if (!V.alive(epoch)) return;
       if (result[0].status === "fulfilled") entries = result[0].value;
@@ -712,8 +712,9 @@
   }
   function renderMap() {
     if (!state.user) return;
+    const locations = shared.locations.filter(l => !window.VaultEpic || window.VaultEpic.matches(l.memory));
     $("map-list").replaceChildren();
-    for (const loc of shared.locations) {
+    for (const loc of locations) {
       const b = node(
         "button",
         "text-button",
@@ -724,7 +725,7 @@
       $("map-list").append(b);
     }
     $("map-status").textContent = navigator.onLine
-      ? `${shared.locations.length} tempat tersimpan · ketuk pin atau nama tempat untuk membuka kenangan.`
+      ? `${locations.length} tempat sesuai filter · ketuk pin atau nama tempat untuk membuka kenangan.`
       : "Luring · daftar lokasi tetap tersedia; peta dasar membutuhkan internet.";
     if (!$("map-details").isConnected || !$("map-details").open || !window.L)
       return;
@@ -738,7 +739,7 @@
     }
     map.invalidateSize();
     pins.clearLayers();
-    for (const loc of shared.locations) {
+    for (const loc of locations) {
       const content = node("div");
       content.append(node("strong", "", loc.label || loc.memory.title));
       const open = node("button", "text-button", "Buka kenangan");
@@ -752,7 +753,7 @@
         .bindPopup(content)
         .addTo(pins);
     }
-    if (shared.locations.length)
+    if (locations.length)
       map.fitBounds(pins.getBounds(), {
         padding: [32, 32],
         maxZoom: 14,

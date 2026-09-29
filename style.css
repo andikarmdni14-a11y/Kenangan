@@ -294,9 +294,7 @@ audio {
   color: var(--muted);
 }
 .lock-emblem {
-  font: 40px var(--serif);
-  background: var(--rose);
-  border-radius: 50%;
+  background: transparent;
   width: 74px;
   height: 74px;
   display: grid;
@@ -2237,9 +2235,6 @@ section[id] {
   margin: 9px 0 4px;
   align-items: center;
 }
-.memory-card > .reactions {
-  padding: 0 8px 8px;
-}
 .reaction {
   border: 1px solid #edd4df;
   background: #fff8fb;
@@ -2470,9 +2465,28 @@ section[id] {
   color: #9c245a;
 }
 #boot-status {
-  position: relative;
-  padding: 14px 20px;
+  position: fixed;
+  z-index: 600;
+  inset: 0 auto 0 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: var(--app-width, 480px);
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: max(32px, env(safe-area-inset-top)) 24px max(32px, env(safe-area-inset-bottom));
+  background: var(--paper);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  overflow-y: auto;
+  text-align: center;
 }
+.splash-logo { width: 112px; height: 112px; flex: 0 0 auto; }
+#boot-title { margin: 4px 0 0; font: 30px/1.2 var(--serif); }
+#boot-message { max-width: 32ch; margin: 0; font-size: 14px; color: var(--muted); }
+#boot-retry { margin-top: 8px; }
 #gallery-status {
   text-align: center;
   margin: 18px 0;
@@ -2550,6 +2564,7 @@ input::placeholder, textarea::placeholder {
   display: inline-flex; align-items: center; justify-content: center;
 }
 .brand-mark { display: block; width: 100%; height: 100%; }
+.site-footer > .footer-mark { display: block; width: 26px; height: 26px; margin: 0 auto 10px; }
 .header-actions { gap: 4px; flex-wrap: nowrap; max-width: none; flex-shrink: 0; }
 .header-actions .icon-button { width: 44px; height: 44px; min-width: 44px; }
 .lock-layout {
@@ -2730,3 +2745,53 @@ dialog { width: min(460px, calc(100vw - 24px)); max-width: calc(100vw - 24px); m
   .add-fab, .sync-dot { animation: none; transition: none; }
   .add-fab:hover, .add-fab:active { transform: none; }
 }
+
+/* v6: quiet archive, shared questions and a private storybook. */
+.gallery .memory-card { height: fit-content; align-self: start; }
+.gallery .memory-copy { padding: 12px 4px 8px; }
+.memory-copy time { display: block; margin: 8px 0 0; color: var(--muted); }
+.memory-tags { display: flex; gap: 5px 8px; flex-wrap: wrap; margin: 8px 0; font-size: 11px; color: #734058; overflow-wrap: anywhere; }
+.voice-wave { height: 74px; display: flex; align-items: center; gap: 5px; color: #8c315b; }
+.voice-wave i { display: block; width: 5px; height: 26px; border-radius: 8px; background: currentColor; }
+.voice-wave i:nth-child(2n) { height: 48px; }
+.voice-wave i:nth-child(3n) { height: 68px; }
+.voice-wave i:first-child, .voice-wave i:last-child { height: 16px; }
+.archive-filter-bar { margin: 18px 0; }
+.tag-strip { display: flex; gap: 8px; overflow-x: auto; overscroll-behavior-x: contain; padding: 5px 2px 9px; max-width: 100%; }
+.filter-chip { flex: 0 0 auto; min-height: 44px; padding: 8px 13px; border: 1px solid #d7becd; border-radius: 999px; background: #fffafc; color: #624b5c; font: inherit; font-size: 12px; }
+.filter-chip[aria-pressed="true"] { background: #ffe6f0; border-color: #a84670; color: #87234e; }
+.filter-chip:focus-visible, .review-cover:focus-visible { outline: 3px solid #8c2151; outline-offset: 3px; }
+.filter-chip:disabled { cursor: wait; }
+.review-cover { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; width: 100%; margin-top: 20px; padding: 22px; border: 1px solid #dac4d0; border-radius: 18px; background: linear-gradient(130deg,#f9e6ee,#f6f5eb); text-align: left; color: #503445; }
+.review-cover strong { font-family: var(--serif); font-size: 24px; font-weight: 600; line-height: 1.3; }
+.review-cover > span:last-child { font-size: 12px; line-height: 1.6; }
+.weekly-panel { margin-bottom: 22px; background: #fff8fb; }
+.weekly-panel .prompt-question { font-size: 21px; }
+.weekly-locked { border: 1px dashed #cfaabd; border-radius: 14px; padding: 24px 18px; margin: 18px 0; text-align: center; color: #624b5c; background: #f6edf1; }
+.weekly-locked > span { font-size: 27px; }
+.weekly-locked p { margin: 8px 0 0; }
+.weekly-answer { border-left: 3px solid #af6687; margin: 18px 0; padding: 14px 16px; background: #fff; border-radius: 0 12px 12px 0; overflow-wrap: anywhere; }
+.weekly-answer h3 { font-size: 18px; margin: 0 0 8px; }
+.weekly-answer p { margin: 0; }
+.book-settings { border-top: 1px solid var(--line); margin-top: 20px; padding-top: 18px; }
+.book-settings h3 { margin-bottom: 6px; }
+.audio-library-row { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.audio-library-row label { overflow-wrap: anywhere; }
+.audio-library-row select { margin-bottom: 0; font-size: 13px; }
+.record-actions { margin-top: 12px; }
+#memory-favorite[aria-pressed="true"] { background: #ffe6f0; color: #87234e; border-color: #a84670; }
+#review-dialog { width: min(100vw,480px); height: 100vh; height: 100dvh; max-width: 100vw; max-height: 100vh; max-height: 100dvh; padding: 16px; padding-bottom: max(16px,env(safe-area-inset-bottom)); border: 0; border-radius: 0; margin: auto; background: #fcf7f2; color: #4b3040; overflow: hidden; }
+#review-dialog[open] { display: grid; grid-template-rows: auto minmax(0,1fr) auto; gap: 10px; }
+#review-dialog::backdrop { background: #261b28dc; }
+.review-top, .review-bottom { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.review-top p { margin: 0; }
+.review-slide { display: flex; flex-direction: column; justify-content: safe center; align-items: center; text-align: center; gap: 14px; overflow-y: auto; padding: 12px 4px; touch-action: pan-y; outline-offset: -3px; }
+.review-slide > * { flex-shrink: 0; max-width: 100%; }
+.review-slide h3 { font-family: var(--serif); font-size: 26px; line-height: 1.3; margin: 0; overflow-wrap: anywhere; }
+.review-slide .review-title { font-size: clamp(32px,9vw,48px); }
+.review-slide p { margin: 0; overflow-wrap: anywhere; }
+.review-media { display: grid; place-items: center; width: 100%; min-height: 140px; }
+.review-media img { display: block; width: 100%; max-height: 52vh; object-fit: contain; border: 8px solid #fff; box-shadow: 0 5px 20px #543b421c; }
+.review-media audio { width: 100%; }
+.review-bottom .button { min-height: 44px; font-size: 12px; padding: 10px 12px; }
+#book-download { margin-top: 14px; }
